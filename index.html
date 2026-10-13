@@ -468,7 +468,7 @@ table.tm tbody tr.date-err td.cdate-in .ei{color:#FF8A80!important;font-weight:7
 table.tm tbody tr.sem-odd.date-err td.cdate-in .ei{color:#B71C1C!important;}
 .date-err-bar{background:rgba(198,40,40,.22);border-bottom:1px solid rgba(198,40,40,.5);padding:8px 16px;font-size:12px;color:#FFCDD2;font-weight:700;display:flex;gap:8px;align-items:center;}
 /* ===== Bulle organisateur ===== */
-td.org-auto{cursor:help;}
+td[data-tip]{cursor:help;}
 .org-tip{position:fixed;z-index:9999;max-width:280px;background:#FFF8E1;color:#3E2700;border:1px solid #FFB300;border-radius:8px;padding:8px 11px;font-size:12px;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.35);pointer-events:none;opacity:0;transform:translateY(-3px);transition:opacity .15s,transform .15s;font-family:'Outfit',sans-serif;}
 .org-tip.on{opacity:1;transform:none;}
 .org-tip::before{content:'';position:absolute;top:-6px;left:18px;width:10px;height:10px;background:#FFF8E1;border-left:1px solid #FFB300;border-top:1px solid #FFB300;transform:rotate(45deg);}
@@ -1185,13 +1185,13 @@ function renderMois(cid,mois,isAdmin){
       if(isDateErr && !hideParticulier) dateErrMois++;
       rows+=`<tr data-crow="${mois}|${ri2}" class="sem-${si%2===0?'even':'odd'}${isF?' sc':''}${isConf?' conflict':''}${isDateErr?' date-err':''}" style="${hideParticulier?'display:none;':''}">
         ${sc}
-        <td${isAsso?' class="org-auto"':''}><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
+        <td${isAsso?' class="org-auto" data-tip="'+TIP_ORG+'"':''}><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upMField('${mois}',${ri2},'org',this.value);autoSync('${mois}',${ri2})"
           ${currentUser&&currentUser.role==='asso'?'readonly style="cursor:default;opacity:.7;"':''}>${x(r.org)}</textarea>
           <span data-org="${mois}-${ri2}" style="display:none;">${x(r.org)}</span></td>
         <td><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upMField('${mois}',${ri2},'manif',this.value);autoSync('${mois}',${ri2})">${x(r.manif)}</textarea></td>
-        <td class="cdate-in"><textarea class="ei${roFinal}" rows="2" onInput="autoGrow(this)" onchange="upDateField('${mois}',${ri2},this)"
+        <td class="cdate-in" data-tip="${TIP_DATE}"><textarea class="ei${roFinal}" rows="2" onInput="autoGrow(this)" onchange="upDateField('${mois}',${ri2},this)"
           placeholder="jj/mm/aaaa"
           style="text-align:center;resize:none;line-height:1.3;font-size:11px;">${x(r.date)}</textarea></td>
         <td>${lieuSelects(mois,ri2,r,lk||!!roAsso)}</td>
@@ -1329,6 +1329,7 @@ function upMField(mois,ri,field,val){
 
   // Asso : toute saisie sur une ligne libre la rattache à l'association
   if(currentUser && currentUser.role==='asso' && String(val).trim()) assoMarquerLigne(mois,ri,r);
+  assoLibererSiVide(mois,ri,r);
   const champs=['org','manif','rem','clubs','date','lieu','deb','fin'];
   if(!r.ddate&&champs.includes(field)&&String(val).trim()){
     r.ddate=todayStr();
@@ -1363,6 +1364,21 @@ function assoPeutModifierLigne(r){
   const org=(r.org||'').trim().toLowerCase();
   if(org) return org===moi;
   return !rowHasContent(r) && !(r.lieu_cat||'').trim();
+}
+// Si l'asso efface tout ce qu'elle avait saisi, la ligne redevient libre (nom retiré)
+function assoLibererSiVide(mois,ri,r){
+  if(!currentUser || currentUser.role!=='asso' || !r.org) return;
+  if(r.org.trim().toLowerCase()!==(currentUser.nom||'').trim().toLowerCase()) return;
+  const reste=['manif','date','lieu','deb','fin','rem','clubs'].some(c=>String(r[c]||'').trim()) || (r.lieu_cat||'').trim();
+  if(reste) return;
+  r.org=''; r.ddate='';
+  const span=document.querySelector('[data-org="'+mois+'-'+ri+'"]');
+  if(span){
+    span.textContent='';
+    const ta=span.parentElement&&span.parentElement.querySelector('textarea');
+    if(ta) ta.value='';
+    const tr=span.closest('tr'); const cd=tr&&tr.querySelector('.cdate'); if(cd) cd.textContent='—';
+  }
 }
 function assoMarquerLigne(mois,ri,r){
   if(r.org) return;
@@ -1461,6 +1477,12 @@ function parseDateAny(v){
   const d=new Date(a,m-1,j);
   return d.getDate()===j?d:null;
 }
+function numMois(mois,d){
+  if(d&&d.num>=1&&d.num<=12) return d.num;
+  const k=String(mois).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const L=['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+  return L.indexOf(k)+1;
+}
 // Semaines calendaires (lundi → dimanche), comme affiché dans la colonne Sem.
 // S1 = du 1er au premier dimanche ; la dernière semaine du mois va jusqu'à la fin du mois.
 function bornesSemaine(mois,ri){
@@ -1469,7 +1491,7 @@ function bornesSemaine(mois,ri){
   const label=rows[i].sem||''; const n=parseInt(label.replace(/\D/g,''));
   if(!n) return null;
   const nbSem=rows.filter(r=>r.sem).length;
-  const an=d.an, mn=(d.num||MOIS.indexOf(mois)+1)-1;
+  const an=d.an, mn=numMois(mois,d)-1;
   const dernier=new Date(an,mn+1,0).getDate();
   const premier=new Date(an,mn,1).getDay();            // 0 = dimanche
   const finS1=1+((7-premier)%7);                       // 1er dimanche
@@ -1504,22 +1526,29 @@ function showAlerte(titre,msg){
   document.getElementById('modal-alerte').classList.add('open');
 }
 
-// ===== BULLE COLONNE ORGANISATEUR (associations) =====
+// ===== BULLES D'AIDE (cellules avec data-tip) =====
+const TIP_ORG="La saisie de cette cellule est automatique : renseignez directement les informations dans la colonne Manifestation.";
+const TIP_DATE="Saisissez la date au format JJ/MM/AAAA (ex. : 05/09/2026). Elle doit tomber dans la semaine de cette ligne.";
 (function(){
   let tip=null;
-  document.addEventListener('mouseover',e=>{
-    const td=e.target.closest&&e.target.closest('td.org-auto');
+  const montrer=e=>{
+    const td=e.target.closest&&e.target.closest('td[data-tip]');
     if(!td) return;
-    if(!tip){tip=document.createElement('div');tip.className='org-tip';
-      tip.textContent='La saisie du contenu de cette cellule est automatique : renseignez directement les infos en colonne Manifestation.';
-      document.body.appendChild(tip);}
+    if(!tip){tip=document.createElement('div');tip.className='org-tip';document.body.appendChild(tip);}
+    tip.textContent=td.dataset.tip;
     const r=td.getBoundingClientRect();
     tip.style.left=Math.min(r.left,window.innerWidth-300)+'px';
     tip.style.top=(r.bottom+6)+'px';
     tip.classList.add('on');
-  });
+    clearTimeout(tip._t);
+    if(e.type!=='mouseover') tip._t=setTimeout(()=>tip.classList.remove('on'),4000);
+  };
+  document.addEventListener('mouseover',montrer);
+  document.addEventListener('click',montrer);
+  document.addEventListener('focusin',montrer);
+  document.addEventListener('touchstart',montrer,{passive:true});
   document.addEventListener('mouseout',e=>{
-    const td=e.target.closest&&e.target.closest('td.org-auto');
+    const td=e.target.closest&&e.target.closest('td[data-tip]');
     if(td && tip && !td.contains(e.relatedTarget)) tip.classList.remove('on');
   });
   document.addEventListener('scroll',()=>{if(tip)tip.classList.remove('on');},true);
@@ -1574,6 +1603,7 @@ function upLieuCat(mois,ri,el){
     if(el.value) assoMarquerLigne(mois,ri,r);
   }
   r.lieu_cat=el.value; r.lieu='';
+  assoLibererSiVide(mois,ri,r);
   saveM();
   const lk=S.verrou&&!currentIsAdmin;
   el.closest('td').innerHTML=lieuSelects(mois,ri,r,lk);
@@ -2705,5 +2735,6 @@ initSupabase();
 </div>
 </div>
 
+<div id="app-version" style="position:fixed;left:8px;bottom:6px;font-size:10px;color:rgba(255,255,255,.35);z-index:50;pointer-events:none;font-family:Outfit,sans-serif;">version du 13/10/2026 – 10h45</div>
 </body>
 </html>
