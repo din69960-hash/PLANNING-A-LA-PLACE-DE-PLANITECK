@@ -433,6 +433,32 @@ tr.conflict:hover td{background:rgba(198,40,40,.45)!important;}
 .consent-row input[type=checkbox]{margin-top:2px;flex-shrink:0;}
 .btn-link{background:none;border:none;color:var(--bleu);font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;padding:0;text-decoration:underline;}
 .err-msg{color:#C62828;font-size:12px;margin-bottom:8px;display:none;padding:8px 12px;background:#FFF5F5;border-radius:8px;border:1px solid #FEB2B2;}
+
+/* ===== Tableau mensuel : largeurs fixes réglables ===== */
+table.tm{table-layout:fixed;}
+table.tm thead th{position:sticky;white-space:normal;overflow:hidden;word-break:normal;overflow-wrap:normal;letter-spacing:.02em;}
+table.tm td{overflow:hidden;}
+table.tm td.csem{width:auto;min-width:0;}
+.col-rsz{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;z-index:6;touch-action:none;}
+.col-rsz::after{content:'';position:absolute;top:20%;bottom:20%;left:3px;width:3px;border-radius:2px;background:rgba(255,179,0,.35);}
+.col-rsz:hover::after{background:#FFB300;}
+body.col-resizing,body.col-resizing *{cursor:col-resize!important;user-select:none!important;}
+.wrange{color:rgba(100,180,255,.85);}
+/* ===== Semaines : S1/S3 fond bleu, S2/S4 fond blanc texte bleu foncé ===== */
+table.tm tbody tr.sem-odd td{background:#FFFFFF;color:#0D2B5E;border-right-color:#D6E2F2;}
+table.tm tbody tr.sem-odd{border-bottom-color:#D6E2F2;}
+table.tm tbody tr.sem-odd:hover td{background:#EAF2FD;}
+table.tm tbody tr.sem-odd td.csem{color:#003F8A;}
+table.tm tbody tr.sem-odd .wrange{color:#1565C0;}
+table.tm tbody tr.sem-odd td.cdate,table.tm tbody tr.sem-odd td.cdur{color:#4A6283;}
+table.tm tbody tr.sem-odd .ei{color:#0D2B5E!important;}
+table.tm tbody tr.sem-odd .ei::placeholder{color:#8DA2C0;}
+table.tm tbody tr.sem-odd .ei:hover{background:rgba(13,43,94,.05);}
+table.tm tbody tr.sem-odd .ei:focus{background:rgba(30,136,229,.08);}
+table.tm tbody tr.sem-odd select.ei{background:#FFFFFF!important;border-color:#B9CBE3!important;}
+table.tm tbody tr.sem-odd select.ei option{background:#0D1F38;color:#fff!important;}
+table.tm tbody tr.sem-odd.conflict td{background:#FDE3E3!important;}
+table.tm tbody tr.sem-odd.conflict:hover td{background:#FBD0D0!important;}
 </style>
 </head>
 <body>
@@ -913,6 +939,7 @@ function applyRemote(d){
   if(d.comptes) S.comptes=d.comptes;
   if(d.saisons) S.saisons=d.saisons;
   if(d.lieux) S.lieux=d.lieux;
+  if(d.colW) S.colW=d.colW;
   saveLocal();
   // Si l'utilisateur est en train de taper dans une cellule, on n'interrompt pas :
   // les données sont à jour en mémoire, le rafraîchissement visuel attendra la fin de saisie
@@ -999,6 +1026,7 @@ async function loadFromDB(){
     if(d.lieux) S.lieux=d.lieux;
     if(d.comptes) S.comptes=d.comptes;
     if(d.saisons) S.saisons=d.saisons;
+    if(d.colW) S.colW=d.colW;
     saveLocal();
     // Si la page bilan est active, la rafraîchir avec les nouvelles données
     if(document.getElementById('pg-bilan')&&document.getElementById('pg-bilan').classList.contains('active')){
@@ -1014,7 +1042,7 @@ async function saveToDB(){
   try {
     const{error}=await supabaseClient.from('planning').upsert({
       id:'main',
-      payload:{mois:S.mois,act:S.act,acts_list:S.acts_list,verrou:S.verrou,annee:S.annee,mdpAsso:S.mdpAsso,mdpAdmin:S.mdpAdmin,mdpAgent:S.mdpAgent,comptes:S.comptes,saisons:S.saisons,lieux:S.lieux,_client:CLIENT_ID},
+      payload:{mois:S.mois,act:S.act,acts_list:S.acts_list,verrou:S.verrou,annee:S.annee,mdpAsso:S.mdpAsso,mdpAdmin:S.mdpAdmin,mdpAgent:S.mdpAgent,comptes:S.comptes,saisons:S.saisons,lieux:S.lieux,colW:S.colW||{},_client:CLIENT_ID},
       updated_at:new Date().toISOString()
     });
     if(error) throw error;
@@ -1037,7 +1065,7 @@ function buildTabs(zoneId,cid,isAdmin){
     <option value="" selected>🏅 Votre association…</option>
     ${S.acts_list.map(a=>`<option value="${x(a)}">${x(a)}</option>`).join('')}
   </select>`;
-  h+=`<button class="tab-add-btn" onclick="openModal('new-act')" title="Ajouter une association">＋</button>`;
+  if(isAdmin) h+=`<button class="tab-add-btn" onclick="openModal('new-act')" title="Ajouter une association">＋</button>`;
   h+='<span class="sep"></span>';
   const bi=MOIS.length+S.acts_list.length;
 
@@ -1076,6 +1104,7 @@ function renderTab(cid,idx,isAdmin){
 }
 
 function confirmerNouvelleAct(){
+  if(!currentUser || currentUser.role==='asso') return;
   const nom=document.getElementById('new-act-name').value.trim();
   const err=document.getElementById('err-new-act');
   if(!nom||S.acts_list.includes(nom)){err.style.display='block';return;}
@@ -1119,11 +1148,11 @@ function renderMois(cid,mois,isAdmin){
       const rowspanReel = s.vis - nbParticulier;
       const sc=isF?`<td class="csem" rowspan="${rowspanReel}" title="${weekRange}" style="cursor:default;">
         <div>${s.label}</div>
-        ${weekRange?`<div style="font-size:11px;color:rgba(100,180,255,.85);font-weight:400;white-space:normal;margin-top:4px;line-height:1.4;">${weekRange}</div>`:''}
+        ${weekRange?`<div class="wrange" style="font-size:11px;font-weight:400;white-space:normal;margin-top:4px;line-height:1.4;">${weekRange}</div>`:''}
       </td>`:'';
       const ri2=r.ri;
       // Calculer si cette ligne est verrouillée pour cette asso
-      const roAsso = isAsso && r.org && r.org.trim().toLowerCase() !== (currentUser.nom||'').trim().toLowerCase() ? ' ro' : '';
+      const roAsso = isAsso && !assoPeutModifierLigne(r) ? ' ro' : '';
       const roFinal = ro + roAsso;
       // Masquer les lignes "Particulier" pour les associations
       const hideParticulier = !isAdmin && currentUser && currentUser.role==='asso' && (r.org||'').trim().toLowerCase()==='particulier';
@@ -1132,25 +1161,24 @@ function renderMois(cid,mois,isAdmin){
         ${sc}
         <td><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upMField('${mois}',${ri2},'org',this.value);autoSync('${mois}',${ri2})"
-          style="min-width:80px" ${currentUser&&currentUser.role==='asso'?'readonly style="cursor:default;opacity:.7;"':''}>${x(r.org)}</textarea>
+          ${currentUser&&currentUser.role==='asso'?'readonly style="cursor:default;opacity:.7;"':''}>${x(r.org)}</textarea>
           <span data-org="${mois}-${ri2}" style="display:none;">${x(r.org)}</span></td>
         <td><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
-          onchange="upMField('${mois}',${ri2},'manif',this.value);autoSync('${mois}',${ri2})"
-          style="min-width:160px">${x(r.manif)}</textarea></td>
+          onchange="upMField('${mois}',${ri2},'manif',this.value);autoSync('${mois}',${ri2})">${x(r.manif)}</textarea></td>
         <td><textarea class="ei${roFinal}" rows="2" onchange="upDateField('${mois}',${ri2},this)"
           placeholder="jj/mm/aaaa"
-          style="width:78px;text-align:center;resize:none;line-height:1.3;font-size:11px;">${x(r.date)}</textarea></td>
-        <td style="min-width:150px;">${lieuSelects(mois,ri2,r,lk)}</td>
+          style="text-align:center;resize:none;line-height:1.3;font-size:11px;">${x(r.date)}</textarea></td>
+        <td>${lieuSelects(mois,ri2,r,lk||!!roAsso)}</td>
         <td><input class="ei${roFinal}" value="${x(r.deb)}" placeholder="ex: 14h"
           onchange="upHeureField('${mois}',${ri2},'deb',this)"
-          style="width:52px;text-align:center"></td>
+          style="text-align:center;padding:5px 2px;"></td>
         <td><input class="ei${roFinal}" value="${x(r.fin)}" placeholder="ex: 18h"
           onchange="upHeureField('${mois}',${ri2},'fin',this)"
-          style="width:52px;text-align:center"></td>
+          style="text-align:center;padding:5px 2px;"></td>
         <td class="cdate">${r.ddate||'—'}</td>
         <td><select class="ei${isAdmin?'':' admin-only'}"
           ${isAdmin?`onchange="upMField('${mois}',${ri2},'trait',this.value)"`:'disabled'}
-          style="min-width:130px;font-size:11px;padding:3px 4px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;cursor:${isAdmin?'pointer':'default'};">
+          style="width:100%;font-size:11px;padding:3px 4px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;cursor:${isAdmin?'pointer':'default'};">
           <option value="" ${!r.trait?'selected':''} style="background:#0D1F38;">— Aucun —</option>
           <option value="À l'étude" ${r.trait==="À l'étude"?'selected':''} style="background:#0D1F38;">🔍 À l'étude</option>
           <option value="Date confirmée" ${r.trait==='Date confirmée'?'selected':''} style="background:#0D1F38;">📅 Date confirmée</option>
@@ -1159,11 +1187,9 @@ function renderMois(cid,mois,isAdmin){
           <option value="Refus" ${r.trait==='Refus'?'selected':''} style="background:#0D1F38;">❌ Refus</option>
         </select></td>
         <td><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
-          onchange="upMField('${mois}',${ri2},'rem',this.value);autoSync('${mois}',${ri2})"
-          style="min-width:120px">${x(r.rem)}</textarea></td>
+          onchange="upMField('${mois}',${ri2},'rem',this.value);autoSync('${mois}',${ri2})">${x(r.rem)}</textarea></td>
         <td><input class="ei${roFinal}" value="${x(r.clubs)}"
-          onchange="upMField('${mois}',${ri2},'clubs',this.value);autoSync('${mois}',${ri2})"
-          style="min-width:70px"></td>
+          onchange="upMField('${mois}',${ri2},'clubs',this.value);autoSync('${mois}',${ri2})"></td>
         <td class="cdur" id="dur-${mois}-${ri2}" style="text-align:center;padding:5px;">${r.dur||'0'}</td>
       </tr>`;
     });
@@ -1176,20 +1202,21 @@ function renderMois(cid,mois,isAdmin){
     </div>${mbtn}
   </div>
   <div class="conflict-bar" data-mois="${mois}" style="display:${confMois?'flex':'none'};">⚠️ ${confMois} ligne(s) en conflit ce mois-ci : même date, même lieu, horaires qui se chevauchent — arbitrage nécessaire.</div>
-  <div style="overflow:auto;flex:1;"><table class="tm">
+  <div style="overflow:auto;flex:1;"><table class="tm" style="min-width:${colMinTable()}px">
+    ${colGroupHtml()}
     <thead><tr>
-      <th style="width:34px">Sem.</th>
-      <th style="min-width:80px">Organisateur<br><span style="font-weight:400;font-size:9px;opacity:.6;font-style:italic;">(saisie automatique)</span></th>
-      <th style="min-width:160px">Manifestation</th>
-      <th style="width:86px">Date</th>
-      <th style="min-width:150px">Lieu</th>
-      <th style="width:54px">Début</th>
-      <th style="width:54px">Fin</th>
-      <th style="width:72px">Date demande</th>
-      <th style="min-width:55px;max-width:68px;font-size:9px;line-height:1.3;">Traitement<br><span style="font-weight:400;opacity:.65;font-size:8px;">(réservé service sports)</span></th>
-      <th style="min-width:120px">Remarque</th>
-      <th style="min-width:70px">Clubs impactés</th>
-      <th style="width:40px">Dur.</th>
+      <th>Sem.${rszH('sem',isAdmin)}</th>
+      <th>Organisateur<br><span style="font-weight:400;font-size:9px;opacity:.6;font-style:italic;">(saisie auto)</span>${rszH('org',isAdmin)}</th>
+      <th>Manifestation${rszH('manif',isAdmin)}</th>
+      <th>Date${rszH('date',isAdmin)}</th>
+      <th>Lieu${rszH('lieu',isAdmin)}</th>
+      <th>Début${rszH('deb',isAdmin)}</th>
+      <th>Fin${rszH('fin',isAdmin)}</th>
+      <th>Date demande${rszH('ddate',isAdmin)}</th>
+      <th style="font-size:9px;line-height:1.3;">Traitement<br><span style="font-weight:400;opacity:.65;font-size:8px;">(service sports)</span>${rszH('trait',isAdmin)}</th>
+      <th>Remarque</th>
+      <th>Clubs impactés${rszH('clubs',isAdmin)}</th>
+      <th>Dur.${rszH('dur',isAdmin)}</th>
     </tr></thead>
     <tbody>${rows}
     <tr class="trow">
@@ -1198,6 +1225,45 @@ function renderMois(cid,mois,isAdmin){
     </tr></tbody>
   </table></div>`;
   setTimeout(()=>document.querySelectorAll('#'+cid+' textarea.ei').forEach(autoGrow),10);
+}
+
+// ===== LARGEURS DE COLONNES (réglables par agent/admin, partagées) =====
+const COL_ORDER=['sem','org','manif','date','lieu','deb','fin','ddate','trait','rem','clubs','dur'];
+const COL_DEFAULT={sem:90,org:95,manif:170,date:86,lieu:160,deb:56,fin:56,ddate:76,trait:110,clubs:95,dur:44};
+const COL_MIN=30, REM_MIN=140;
+function colW(k){ const w=(S.colW&&S.colW[k])||COL_DEFAULT[k]; return Math.max(COL_MIN,w); }
+function colGroupHtml(){
+  return '<colgroup>'+COL_ORDER.map(k=>k==='rem'?'<col data-col="rem">':'<col data-col="'+k+'" style="width:'+colW(k)+'px">').join('')+'</colgroup>';
+}
+function colMinTable(){ return COL_ORDER.filter(k=>k!=='rem').reduce((s,k)=>s+colW(k),0)+REM_MIN; }
+function rszH(k,isAdmin){
+  if(!isAdmin) return '';
+  return '<span class="col-rsz" title="Glisser pour régler la largeur — double-clic : largeur par défaut" onpointerdown="startColResize(event,\''+k+'\')" ondblclick="resetColW(\''+k+'\')"></span>';
+}
+function startColResize(ev,k){
+  ev.preventDefault(); ev.stopPropagation();
+  const table=ev.target.closest('table'); if(!table) return;
+  const col=table.querySelector('col[data-col="'+k+'"]'); if(!col) return;
+  const x0=ev.clientX, w0=colW(k);
+  if(!S.colW) S.colW={};
+  document.body.classList.add('col-resizing');
+  const move=e=>{
+    const w=Math.max(COL_MIN,Math.round(w0+e.clientX-x0));
+    S.colW[k]=w; col.style.width=w+'px'; table.style.minWidth=colMinTable()+'px';
+  };
+  const up=()=>{
+    document.removeEventListener('pointermove',move);
+    document.removeEventListener('pointerup',up);
+    document.body.classList.remove('col-resizing');
+    saveS();
+    table.querySelectorAll('textarea.ei').forEach(autoGrow);
+  };
+  document.addEventListener('pointermove',move);
+  document.addEventListener('pointerup',up);
+}
+function resetColW(k){
+  if(S.colW) delete S.colW[k];
+  saveS(); renderTab(currentCid,currentIdx,currentIsAdmin);
 }
 
 // Calcule les dates de début et fin d'une semaine dans un mois
@@ -1238,29 +1304,19 @@ function upMField(mois,ri,field,val){
   // Asso : ne peut pas modifier l'organisateur directement
   if(field==='org' && currentUser && currentUser.role==='asso') return;
 
-  // Asso : ne peut modifier que ses propres lignes
+  // Asso : ne peut modifier que ses propres lignes (ou une ligne vide)
   if(currentUser && currentUser.role==='asso'){
-    // Si la ligne appartient à quelqu'un d'autre (org rempli et différent du user)
-    if(r.org && r.org.trim().toLowerCase() !== currentUser.nom.trim().toLowerCase()){
+    if(!assoPeutModifierLigne(r)){
       toast('❌ Vous ne pouvez modifier que vos propres lignes.');
-      return;
-    }
-    // Si la ligne a une manifestation saisie par quelqu'un d'autre
-    if(!r.org && r.manif && field !== 'manif'){
-      toast('❌ Vous ne pouvez modifier que vos propres lignes.');
+      renderTab(currentCid,currentIdx,currentIsAdmin);
       return;
     }
   }
 
   r[field]=val;
 
-  // Asso : auto-remplir org quand elle saisit dans manif
-  if(field==='manif' && currentUser && currentUser.role==='asso' && String(val).trim()){
-    if(!r.org) r.org = currentUser.nom;
-    // Mettre à jour la cellule org visuellement
-    const orgEl = document.querySelector('[data-org="'+mois+'-'+ri+'"]');
-    if(orgEl) orgEl.textContent = currentUser.nom;
-  }
+  // Asso : toute saisie sur une ligne libre la rattache à l'association
+  if(currentUser && currentUser.role==='asso' && String(val).trim()) assoMarquerLigne(mois,ri,r);
   const champs=['org','manif','rem','clubs','date','lieu','deb','fin'];
   if(!r.ddate&&champs.includes(field)&&String(val).trim()){
     r.ddate=todayStr();
@@ -1283,6 +1339,28 @@ function upMField(mois,ri,field,val){
   }
   saveM();
   if(champs.includes(field)) maybeExtend(mois);
+}
+
+// ===== DROITS ASSOCIATION =====
+// Une asso peut modifier : ses propres lignes, ou une ligne entièrement vide.
+// Une ligne remplie sans organisateur (saisie service) est verrouillée.
+function assoPeutModifierLigne(r){
+  if(!currentUser || currentUser.role!=='asso') return true;
+  if(!r) return false;
+  const moi=(currentUser.nom||'').trim().toLowerCase();
+  const org=(r.org||'').trim().toLowerCase();
+  if(org) return org===moi;
+  return !rowHasContent(r) && !(r.lieu_cat||'').trim();
+}
+function assoMarquerLigne(mois,ri,r){
+  if(r.org) return;
+  r.org=currentUser.nom;
+  const span=document.querySelector('[data-org="'+mois+'-'+ri+'"]');
+  if(span){
+    span.textContent=currentUser.nom;
+    const ta=span.parentElement&&span.parentElement.querySelector('textarea');
+    if(ta) ta.value=currentUser.nom;
+  }
 }
 
 // ===== SEMAINES COMPACTES : 3 lignes visibles, extension auto =====
@@ -1384,6 +1462,14 @@ function lieuSelects(mois,ri,r,lk){
 }
 function upLieuCat(mois,ri,el){
   const r=S.mois[mois].rows[ri]; if(!r) return;
+  if(currentUser && currentUser.role==='asso'){
+    if(!assoPeutModifierLigne(r)){
+      toast('❌ Vous ne pouvez modifier que vos propres lignes.');
+      renderTab(currentCid,currentIdx,currentIsAdmin);
+      return;
+    }
+    if(el.value) assoMarquerLigne(mois,ri,r);
+  }
   r.lieu_cat=el.value; r.lieu='';
   saveM();
   const lk=S.verrou&&!currentIsAdmin;
@@ -1909,9 +1995,11 @@ let S={
   acts_list:JSON.parse(localStorage.getItem('acts_list')||'null'),
   lieux:JSON.parse(localStorage.getItem('lieux_data')||'null'),
   comptes:JSON.parse(localStorage.getItem('comptes_assos')||'{}'),
+  colW:(()=>{try{return JSON.parse(localStorage.getItem('col_widths')||'{}')||{};}catch(e){return {};}})(),
 };
 if(!S.acts_list) S.acts_list=[...ACTS_DEFAULT];
 if(!S.mois){ S.mois=JSON.parse(JSON.stringify(ODS)); }
+function initAct(){ S.act={}; (S.acts_list||[]).forEach(a=>{S.act[a]=[];}); }
 if(!S.act){ initAct(); }
 if(!S.lieux) S.lieux=JSON.parse(JSON.stringify(LIEUX_DEFAULT));
 
@@ -2268,6 +2356,7 @@ function saveLocal(){
     localStorage.setItem('lieux_data',JSON.stringify(S.lieux));
     localStorage.setItem('comptes_assos',JSON.stringify(S.comptes));
     localStorage.setItem('saisons_data',JSON.stringify(S.saisons));
+    localStorage.setItem('col_widths',JSON.stringify(S.colW||{}));
   }catch(e){}
 }
 function saveM(){saveToDB();}
