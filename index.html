@@ -459,6 +459,19 @@ table.tm tbody tr.sem-odd select.ei{background:#FFFFFF!important;border-color:#B
 table.tm tbody tr.sem-odd select.ei option{background:#0D1F38;color:#fff!important;}
 table.tm tbody tr.sem-odd.conflict td{background:#FDE3E3!important;}
 table.tm tbody tr.sem-odd.conflict:hover td{background:#FBD0D0!important;}
+
+/* ===== Date hors semaine ===== */
+table.tm tbody tr.date-err td,table.tm tbody tr.sem-odd.date-err td{background:rgba(198,40,40,.38)!important;}
+table.tm tbody tr.sem-odd.date-err td{background:#F9C9C9!important;}
+table.tm tbody tr.date-err td.cdate-in{box-shadow:inset 0 0 0 2px #FF5252;}
+table.tm tbody tr.date-err td.cdate-in .ei{color:#FF8A80!important;font-weight:700;}
+table.tm tbody tr.sem-odd.date-err td.cdate-in .ei{color:#B71C1C!important;}
+.date-err-bar{background:rgba(198,40,40,.22);border-bottom:1px solid rgba(198,40,40,.5);padding:8px 16px;font-size:12px;color:#FFCDD2;font-weight:700;display:flex;gap:8px;align-items:center;}
+/* ===== Bulle organisateur ===== */
+td.org-auto{cursor:help;}
+.org-tip{position:fixed;z-index:9999;max-width:280px;background:#FFF8E1;color:#3E2700;border:1px solid #FFB300;border-radius:8px;padding:8px 11px;font-size:12px;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.35);pointer-events:none;opacity:0;transform:translateY(-3px);transition:opacity .15s,transform .15s;font-family:'Outfit',sans-serif;}
+.org-tip.on{opacity:1;transform:none;}
+.org-tip::before{content:'';position:absolute;top:-6px;left:18px;width:10px;height:10px;background:#FFF8E1;border-left:1px solid #FFB300;border-top:1px solid #FFB300;transform:rotate(45deg);}
 </style>
 </head>
 <body>
@@ -869,6 +882,16 @@ table.tm tbody tr.sem-odd.conflict:hover td{background:#FBD0D0!important;}
   </div>
 </div>
 
+<div id="modal-alerte" class="modal-overlay">
+  <div class="confirm-box">
+    <h3 id="alerte-title">⚠️</h3>
+    <p id="alerte-msg" style="white-space:pre-line;"></p>
+    <div class="confirm-btns">
+      <button style="background:#1565C0;color:#fff;" onclick="document.getElementById('modal-alerte').classList.remove('open')">J'ai compris</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODALE NOUVELLE ACTIVITÉ -->
 <div id="modal-new-act" class="modal-overlay">
   <div class="modal">
@@ -1138,6 +1161,7 @@ function renderMois(cid,mois,isAdmin){
   semaines.forEach(s=>{s.vis=visibleRowsForWeek(s.rows);});
   const total=Math.round(d.rows.reduce((s,r)=>s+(parseFloat(r.dur)||0),0)*10)/10;
   let confMois=0;conf.forEach(k=>{if(k.split('|')[0]===mois)confMois++;});
+  let dateErrMois=0;
   let rows='';
   semaines.forEach((s,si)=>{
     s.rows.slice(0,s.vis).forEach((r,li)=>{
@@ -1157,15 +1181,17 @@ function renderMois(cid,mois,isAdmin){
       // Masquer les lignes "Particulier" pour les associations
       const hideParticulier = !isAdmin && currentUser && currentUser.role==='asso' && (r.org||'').trim().toLowerCase()==='particulier';
       const isConf=conf.has(mois+'|'+ri2);
-      rows+=`<tr data-crow="${mois}|${ri2}" class="sem-${si%2===0?'even':'odd'}${isF?' sc':''}${isConf?' conflict':''}" style="${hideParticulier?'display:none;':''}">
+      const isDateErr=dateHorsSemaine(mois,ri2);
+      if(isDateErr && !hideParticulier) dateErrMois++;
+      rows+=`<tr data-crow="${mois}|${ri2}" class="sem-${si%2===0?'even':'odd'}${isF?' sc':''}${isConf?' conflict':''}${isDateErr?' date-err':''}" style="${hideParticulier?'display:none;':''}">
         ${sc}
-        <td><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
+        <td${isAsso?' class="org-auto"':''}><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upMField('${mois}',${ri2},'org',this.value);autoSync('${mois}',${ri2})"
           ${currentUser&&currentUser.role==='asso'?'readonly style="cursor:default;opacity:.7;"':''}>${x(r.org)}</textarea>
           <span data-org="${mois}-${ri2}" style="display:none;">${x(r.org)}</span></td>
         <td><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upMField('${mois}',${ri2},'manif',this.value);autoSync('${mois}',${ri2})">${x(r.manif)}</textarea></td>
-        <td><textarea class="ei${roFinal}" rows="2" onchange="upDateField('${mois}',${ri2},this)"
+        <td class="cdate-in"><textarea class="ei${roFinal}" rows="2" onInput="autoGrow(this)" onchange="upDateField('${mois}',${ri2},this)"
           placeholder="jj/mm/aaaa"
           style="text-align:center;resize:none;line-height:1.3;font-size:11px;">${x(r.date)}</textarea></td>
         <td>${lieuSelects(mois,ri2,r,lk||!!roAsso)}</td>
@@ -1201,6 +1227,7 @@ function renderMois(cid,mois,isAdmin){
       ${lk?'<span style="background:rgba(198,40,40,.2);color:#FC8181;padding:2px 10px;border-radius:50px;font-size:11px;font-weight:700;">🔒 Lecture seule</span>':''}
     </div>${mbtn}
   </div>
+  <div class="date-err-bar" style="display:${dateErrMois?'flex':'none'};">📅 ${dateErrMois} ligne(s) avec une date qui n'est pas dans la bonne semaine — à corriger.</div>
   <div class="conflict-bar" data-mois="${mois}" style="display:${confMois?'flex':'none'};">⚠️ ${confMois} ligne(s) en conflit ce mois-ci : même date, même lieu, horaires qui se chevauchent — arbitrage nécessaire.</div>
   <div style="overflow:auto;flex:1;"><table class="tm" style="min-width:${colMinTable()}px">
     ${colGroupHtml()}
@@ -1268,29 +1295,14 @@ function resetColW(k){
 
 // Calcule les dates de début et fin d'une semaine dans un mois
 function getWeekRange(mois, semLabel){
-  const d = S.mois[mois];
-  const rows = d.rows;
-  const MOIS_ABREV={'Septembre':'sep','Octobre':'oct','Novembre':'nov',
-    'Décembre':'déc','Janvier':'jan','Février':'fév',
-    'Mars':'mar','Avril':'avr','Mai':'mai','Juin':'jun','Juillet':'jul','Aout':'aoû'};
-  const abrev = MOIS_ABREV[mois] || mois.substring(0,3).toLowerCase();
-  const semaines = [];
-  let i = 0;
-  while(i < rows.length){
-    const debut = rows[i];
-    let j = i;
-    while(j < rows.length && rows[j].jour !== 'dimanche') j++;
-    const fin = rows[Math.min(j, rows.length-1)];
-    semaines.push({ debut, fin });
-    i = j + 1;
-  }
-  const semIdx = parseInt(semLabel.replace('S','')) - 1;
-  const sem = semaines[semIdx];
-  if(!sem) return '';
-  const fj = sem.debut.jour.substring(0,3);
-  const lj = sem.fin.jour.substring(0,3);
-  if(sem.debut.num === sem.fin.num) return `${fj} ${sem.debut.num} ${abrev}`;
-  return `${fj} ${sem.debut.num} → ${lj} ${sem.fin.num} ${abrev}`;
+  const ri=S.mois[mois].rows.findIndex(r=>r.sem===semLabel);
+  if(ri<0) return '';
+  const b=bornesSemaine(mois,ri); if(!b) return '';
+  const MOIS_ABREV=['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
+  const ab=MOIS_ABREV[b.debut.getMonth()];
+  const j=d=>JOURS_FR[d.getDay()].substring(0,3)+' '+d.getDate();
+  if(b.debut.getDate()===b.fin.getDate()) return j(b.debut)+' '+ab;
+  return j(b.debut)+' → '+j(b.fin)+' '+ab;
 }
 function todayStr(){
   const d=new Date();
@@ -1417,10 +1429,101 @@ function normDate(v){
 }
 function upDateField(mois,ri,el){
   const f=normDate(el.value);
-  el.value=f;
+  el.value=f; autoGrow(el);
   upMField(mois,ri,'date',f);
+  const r=S.mois[mois].rows[ri];
+  if(!r || r.date!==f) return; // modification refusée
   refreshConflicts();
+  majDateErr(mois);
+  if(dateHorsSemaine(mois,ri)){
+    const b=bornesSemaine(mois,ri);
+    showAlerte('📅 Vous n\'êtes pas sur la bonne semaine',
+      'La date saisie ('+f.replace('\n',' ')+') n\'est pas comprise dans la semaine '+b.label+' ('+fmtJour(b.debut)+' → '+fmtJour(b.fin)+').\n\nMerci de saisir cette manifestation sur une ligne de la bonne semaine.');
+  }
 }
+
+// ===== CONTRÔLE DATE / SEMAINE =====
+const JOURS_FR=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const MOIS_FR=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+// Comprend "05/09/2026" comme "samedi 5\nseptembre 2026"
+function parseDateAny(v){
+  v=String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+  if(!v) return null;
+  let j,m,a,mt=v.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if(mt){j=+mt[1];m=+mt[2];a=+mt[3];}
+  else{
+    mt=v.match(/(\d{1,2})(?:er)?\s+([a-zéû]+)\s+(\d{4})/);
+    if(!mt) return null;
+    j=+mt[1]; m=MOIS_FR.indexOf(mt[2].replace('aout','août'))+1; a=+mt[3];
+    if(m<1) return null;
+  }
+  if(a<100) a+=2000;
+  const d=new Date(a,m-1,j);
+  return d.getDate()===j?d:null;
+}
+// Semaines calendaires (lundi → dimanche), comme affiché dans la colonne Sem.
+// S1 = du 1er au premier dimanche ; la dernière semaine du mois va jusqu'à la fin du mois.
+function bornesSemaine(mois,ri){
+  const d=S.mois[mois], rows=d.rows;
+  let i=ri; while(i>0 && !rows[i].sem) i--;
+  const label=rows[i].sem||''; const n=parseInt(label.replace(/\D/g,''));
+  if(!n) return null;
+  const nbSem=rows.filter(r=>r.sem).length;
+  const an=d.an, mn=(d.num||MOIS.indexOf(mois)+1)-1;
+  const dernier=new Date(an,mn+1,0).getDate();
+  const premier=new Date(an,mn,1).getDay();            // 0 = dimanche
+  const finS1=1+((7-premier)%7);                       // 1er dimanche
+  let deb=n===1?1:finS1+1+(n-2)*7;
+  let fin=n===1?finS1:deb+6;
+  if(n===nbSem) fin=dernier;
+  if(deb>dernier) return null;
+  fin=Math.min(fin,dernier);
+  return {label, debut:new Date(an,mn,deb), fin:new Date(an,mn,fin)};
+}
+function dateHorsSemaine(mois,ri){
+  const r=S.mois[mois].rows[ri]; if(!r||!r.date) return false;
+  const dt=parseDateAny(r.date); if(!dt) return false;
+  const b=bornesSemaine(mois,ri); if(!b) return false;
+  return dt<b.debut || dt>b.fin;
+}
+function fmtJour(d){ return JOURS_FR[d.getDay()].substring(0,3)+' '+d.getDate()+' '+MOIS_FR[d.getMonth()]; }
+function majDateErr(mois){
+  let n=0;
+  document.querySelectorAll('#'+currentCid+' tr[data-crow^="'+mois+'|"]').forEach(tr=>{
+    const ri=+tr.dataset.crow.split('|')[1];
+    const err=dateHorsSemaine(mois,ri);
+    tr.classList.toggle('date-err',err);
+    if(err && tr.style.display!=='none') n++;
+  });
+  const bar=document.querySelector('#'+currentCid+' .date-err-bar');
+  if(bar){bar.style.display=n?'flex':'none'; bar.textContent='📅 '+n+' ligne(s) avec une date qui n\'est pas dans la bonne semaine — à corriger.';}
+}
+function showAlerte(titre,msg){
+  document.getElementById('alerte-title').textContent=titre;
+  document.getElementById('alerte-msg').textContent=msg;
+  document.getElementById('modal-alerte').classList.add('open');
+}
+
+// ===== BULLE COLONNE ORGANISATEUR (associations) =====
+(function(){
+  let tip=null;
+  document.addEventListener('mouseover',e=>{
+    const td=e.target.closest&&e.target.closest('td.org-auto');
+    if(!td) return;
+    if(!tip){tip=document.createElement('div');tip.className='org-tip';
+      tip.textContent='La saisie du contenu de cette cellule est automatique : renseignez directement les infos en colonne Manifestation.';
+      document.body.appendChild(tip);}
+    const r=td.getBoundingClientRect();
+    tip.style.left=Math.min(r.left,window.innerWidth-300)+'px';
+    tip.style.top=(r.bottom+6)+'px';
+    tip.classList.add('on');
+  });
+  document.addEventListener('mouseout',e=>{
+    const td=e.target.closest&&e.target.closest('td.org-auto');
+    if(td && tip && !td.contains(e.relatedTarget)) tip.classList.remove('on');
+  });
+  document.addEventListener('scroll',()=>{if(tip)tip.classList.remove('on');},true);
+})();
 
 // ===== HORAIRES : accepte 14, 14h, 14h30, 14:30, 14.5 =====
 function parseHeure(v){
@@ -1483,7 +1586,8 @@ function computeConflicts(){
   MOIS.forEach(m=>{
     S.mois[m].rows.forEach((r,ri)=>{
       if(!r) return;
-      const date=(r.date||'').trim(),lieu=(r.lieu||'').trim();
+      const dtc=parseDateAny(r.date);
+      const date=dtc?dtc.toISOString().slice(0,10):(r.date||'').trim(),lieu=(r.lieu||'').trim();
       const deb=parseHeure(r.deb);
       if(!date||!lieu||deb===null) return;
       let fin=parseHeure(r.fin);
