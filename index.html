@@ -211,6 +211,9 @@ tr.conflict:hover td{background:rgba(198,40,40,.45)!important;}
 .consent-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:12px;color:var(--texte);line-height:1.4;}
 .consent-row:last-child{margin-bottom:0;}
 .consent-row input[type=checkbox]{margin-top:2px;flex-shrink:0;}
+.voir-mdp{display:flex;align-items:center;gap:7px;font-size:12px;color:#718096;margin:-4px 0 14px;cursor:pointer;user-select:none;}
+.voir-mdp input{cursor:pointer;}
+.asso-nom-box{background:#F4F7FB;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-weight:700;color:var(--bleu);font-size:15px;}
 .btn-link{background:none;border:none;color:var(--bleu);font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;padding:0;text-decoration:underline;}
 .err-msg{color:#C62828;font-size:12px;margin-bottom:8px;display:none;padding:8px 12px;background:#FFF5F5;border-radius:8px;border:1px solid #FEB2B2;}
 
@@ -571,7 +574,7 @@ tr.flash td{animation:flashRow 2.2s ease;}
   <div class="topbar dark" style="justify-content:space-between;">
     <h1>📋 Planning Manifestations Corbas 2026–2027</h1>
     <div style="display:flex;gap:8px;">
-      <button class="btn-back" id="btn-prefs-asso" onclick="openModal('prefs-mail')" style="display:none;">⚙️ Mes préférences</button>
+      <button class="btn-back" onclick="openModal('chg-mdp')">🔑 Modifier mon mot de passe</button>
       <button class="btn-back" onclick="deconnexion()">← Déconnexion</button>
     </div>
   </div>
@@ -610,8 +613,7 @@ tr.flash td{animation:flashRow 2.2s ease;}
       <div class="acard" onclick="go('pg-bilan-site')"><div class="ai">🗺️</div><h3>Bilan par site</h3><p>Manifestations par équipement ou salle.</p><button class="abtn ab-b">Consulter</button></div>
       <div class="acard admin-only-card" onclick="go('pg-verrou')"><div class="ai">🔒</div><h3>Verrouiller / Déverrouiller</h3><p>Contrôler l'accès des associations.</p><button class="abtn ab-o">Gérer</button></div>
       <div class="acard" onclick="go('pg-lieux')"><div class="ai">📍</div><h3>Gérer les lieux</h3><p>Ajouter ou supprimer les lieux du planning.</p><button class="abtn ab-b">Gérer</button></div>
-      <div class="acard" onclick="go('pg-gestion-assos')"><div class="ai">🏢</div><h3>Gestion associations</h3><p>Ajouter, supprimer ou voir les comptes créés.</p><button class="abtn ab-b">Gérer</button></div>
-      <div class="acard admin-only-card" onclick="go('pg-mdp-asso')"><div class="ai">🔑</div><h3>Code association</h3><p>Modifier le code d'accès général.</p><button class="abtn ab-g">Changer</button></div>
+      <div class="acard" onclick="go('pg-gestion-assos')"><div class="ai">🏢</div><h3>Gestion associations</h3><p>Ajouter, supprimer, gérer les mots de passe.</p><button class="abtn ab-b">Gérer</button></div>
       <div class="acard admin-only-card" onclick="go('pg-mdp-agent')"><div class="ai">👤</div><h3>Code agent</h3><p>Modifier le mot de passe des agents.</p><button class="abtn ab-g">Changer</button></div>
       <div class="acard admin-only-card" onclick="go('pg-mdp-admin')"><div class="ai">🛡️</div><h3>Code administrateur</h3><p>Modifier votre propre code d'accès.</p><button class="abtn ab-p">Changer</button></div>
       <div class="acard admin-only-card" onclick="go('pg-saisons')"><div class="ai">📅</div><h3>Gestion des saisons</h3><p>Créer ou supprimer une saison de planning.</p><button class="abtn ab-b">Gérer</button></div>
@@ -747,6 +749,7 @@ tr.flash td{animation:flashRow 2.2s ease;}
     <h2>Modifier le code agent</h2><p class="st">Code utilisé par les agents de la ville.</p>
     <div class="fg"><label>Nouveau code</label><input type="password" id="nagent1" class="inp-txt" placeholder="Nouveau code…"></div>
     <div class="fg"><label>Confirmer</label><input type="password" id="nagent2" class="inp-txt" placeholder="Confirmer…"></div>
+    <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['nagent1','nagent2'])"> Voir les caractères</label>
     <p id="msg-nagent" class="mf"></p><button class="save-btn" onclick="changerMdpAgent()">Enregistrer</button>
   </div>
 </div>
@@ -760,6 +763,7 @@ tr.flash td{animation:flashRow 2.2s ease;}
     <h2>Modifier le code administrateur</h2><p class="st">Votre code d'accès personnel.</p>
     <div class="fg"><label>Nouveau code</label><input type="password" id="nadm1" class="inp-txt" placeholder="Nouveau code…"></div>
     <div class="fg"><label>Confirmer</label><input type="password" id="nadm2" class="inp-txt" placeholder="Confirmer…"></div>
+    <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['nadm1','nadm2'])"> Voir les caractères</label>
     <p id="msg-nadm" class="mf"></p><button class="save-btn" onclick="changerMdp('admin')">Enregistrer</button>
   </div>
 </div>
@@ -771,7 +775,7 @@ tr.flash td{animation:flashRow 2.2s ease;}
   <div class="topbar blue"><h1>🏢 Gestion des associations</h1><button class="btn-back" onclick="go('pg-admin')">← Retour</button></div>
   <div class="wrap">
     <h2>Associations du planning</h2>
-    <p class="st">Les associations listées apparaissent dans le planning et dans le formulaire de création de compte.</p>
+    <p class="st">Les associations listées apparaissent dans le planning et dans la liste de connexion. À sa première connexion, chaque association crée son mot de passe. Le bouton 🔑 permet d'en définir un nouveau.</p>
     <div class="fg"><label>Ajouter une association</label>
       <input type="text" id="new-asso-input" class="inp-txt" placeholder="Nom de l'association…" maxlength="50" onkeydown="if(event.key==='Enter')ajouterAssoDuPlanning()">
     </div>
@@ -803,27 +807,28 @@ tr.flash td{animation:flashRow 2.2s ease;}
     <button class="modal-x" onclick="closeModal('asso')">✕</button>
     <span class="mi">🏆</span>
     <h3>Connexion Association</h3>
-    <p>Connectez-vous avec le nom de votre association et votre mot de passe.</p>
+    <p>Choisissez votre association.</p>
+    <form onsubmit="event.preventDefault();valAsso();" autocomplete="on">
     <div class="modal-field">
       <label>Votre association</label>
-      <select id="asso-nom-select">
+      <select id="asso-nom-select" onchange="assoChoisie()">
         <option value="">-- Choisir votre association --</option>
       </select>
+      <input type="text" id="asso-username" name="username" autocomplete="username" style="display:none;" tabindex="-1">
     </div>
-    <div class="modal-field">
-      <label>Mot de passe</label>
-      <input type="password" id="code-asso" placeholder="Votre mot de passe" onkeydown="if(event.key==='Enter')valAsso()">
+    <div id="asso-mdp-zone" style="display:none;">
+      <div class="modal-field">
+        <label>Mot de passe</label>
+        <input type="password" id="code-asso" name="password" autocomplete="current-password" placeholder="Votre mot de passe">
+      </div>
+      <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['code-asso'])"> Voir les caractères</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#718096;margin-bottom:14px;cursor:pointer;">
+        <input type="checkbox" id="asso-remember"> Se souvenir de mon association
+      </label>
     </div>
-    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#718096;margin-bottom:14px;cursor:pointer;">
-      <input type="checkbox" id="asso-remember"> Se souvenir de moi
-    </label>
     <div class="err-msg" id="err-asso"></div>
-    <button class="btn-v bv-blue" onclick="valAsso()">Accéder au planning</button>
-    <hr style="margin:14px 0;border:none;border-top:1px solid #E2E8F0;">
-    <p style="font-size:12px;color:#718096;text-align:center;">
-      Pas encore de compte ?
-      <button class="btn-link" onclick="closeModal('asso');openModal('creer-compte')">Créer mon compte</button>
-    </p>
+    <button type="submit" id="btn-asso-go" class="btn-v bv-blue" style="display:none;">Accéder au planning</button>
+    </form>
   </div>
 </div>
 
@@ -838,6 +843,7 @@ tr.flash td{animation:flashRow 2.2s ease;}
       <label>Code agent</label>
       <input type="password" id="code-agent" class="inp-code" placeholder="••••••" maxlength="30" onkeydown="if(event.key==='Enter')valAgent()">
     </div>
+    <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['code-agent'])"> Voir les caractères</label>
     <div class="err-msg" id="err-agent"></div>
     <button class="btn-v" style="background:#2E7D32;color:#fff;" onclick="valAgent()">Accéder au planning</button>
   </div>
@@ -854,75 +860,85 @@ tr.flash td{animation:flashRow 2.2s ease;}
       <label>Code administrateur</label>
       <input type="password" id="code-admin" class="inp-code" placeholder="••••••" maxlength="30" onkeydown="if(event.key==='Enter')valAdmin()">
     </div>
+    <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['code-admin'])"> Voir les caractères</label>
     <div class="err-msg" id="err-admin"></div>
     <button class="btn-v bv-orange" onclick="valAdmin()">Accéder à l'espace admin</button>
   </div>
 </div>
 
-<!-- MODALE CRÉER COMPTE -->
-<div id="modal-creer-compte" class="modal-overlay">
-  <div class="modal" style="max-width:500px;">
-    <button class="modal-x" onclick="closeModal('creer-compte')">✕</button>
+<!-- MODALE PREMIÈRE CONNEXION : CRÉER SON MOT DE PASSE -->
+<div id="modal-premier-mdp" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal('premier-mdp')">✕</button>
     <span class="mi">✨</span>
-    <h3>Créer un compte</h3>
+    <h3>Créez votre mot de passe</h3>
+    <p>Première connexion : choisissez le mot de passe de votre association. Il vous sera demandé à chaque connexion.</p>
+    <div class="asso-nom-box" id="pm-nom"></div>
+    <form onsubmit="event.preventDefault();creerPremierMdp();" autocomplete="on">
+    <input type="text" id="pm-username" name="username" autocomplete="username" style="display:none;" tabindex="-1">
     <div class="modal-field">
-      <label>Votre association</label>
-      <select id="cc-nom">
-        <option value="">-- Choisir votre association --</option>
-      </select>
-    </div>
-    <p style="font-size:11px;color:#718096;margin:-8px 0 12px;font-style:italic;">Si votre association n'apparaît pas, contactez les services de la ville.</p>
-    <div class="modal-field">
-      <label>Choisissez un mot de passe</label>
-      <input type="password" id="cc-mdp" placeholder="Minimum 4 caractères">
+      <label>Créer votre mot de passe</label>
+      <input type="password" id="pm-mdp" autocomplete="new-password" placeholder="Minimum 6 caractères">
     </div>
     <div class="modal-field">
       <label>Confirmer le mot de passe</label>
-      <input type="password" id="cc-mdp2" placeholder="Confirmer le mot de passe">
+      <input type="password" id="pm-mdp2" autocomplete="new-password" placeholder="Confirmer le mot de passe">
     </div>
-    <div class="modal-field">
-      <label>Votre adresse email</label>
-      <input type="email" id="cc-mail" placeholder="votre@email.fr">
-    </div>
-    <div class="consent-box">
-      <p>Cochez les options que vous autorisez :</p>
-      <p style="font-size:11px;color:#718096;margin-bottom:10px;">J'accepte l'usage de mon adresse mail dans le cadre des options suivantes :</p>
-      <div class="consent-row">
-        <input type="checkbox" id="cc-consent-mdp" checked disabled>
-        <span>Pour changer mon mot de passe oublié et être identifié sur le site <strong>(obligatoire)</strong></span>
-      </div>
-      <div class="consent-row">
-        <input type="checkbox" id="cc-consent-rappel">
-        <span>Pour obtenir des rappels 3 semaines avant mes manifestations <em>(optionnel)</em></span>
-      </div>
-      <div class="consent-row">
-        <input type="checkbox" id="cc-consent-impact">
-        <span>Pour obtenir des rappels sur les manifestations impactant mes activités <em>(optionnel)</em></span>
-      </div>
-    </div>
-    <div class="err-msg" id="err-creer-compte"></div>
-    <button class="btn-v bv-blue" onclick="creerCompteAsso()">✓ Créer mon compte</button>
+    <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['pm-mdp','pm-mdp2'])"> Voir les caractères</label>
+    <div class="err-msg" id="err-premier-mdp"></div>
+    <button type="submit" class="btn-v bv-blue">✓ Enregistrer mon mot de passe</button>
+    </form>
   </div>
 </div>
 
-<!-- MODALE PRÉFÉRENCES MAIL -->
-<div id="modal-prefs-mail" class="modal-overlay">
+<!-- MODALE ASSO : MODIFIER MON MOT DE PASSE -->
+<div id="modal-chg-mdp" class="modal-overlay">
   <div class="modal">
-    <button class="modal-x" onclick="closeModal('prefs-mail')">✕</button>
-    <span class="mi">📧</span>
-    <h3>Mes préférences</h3>
-    <p>Gérez vos options de notification par email.</p>
-    <div class="consent-box">
-      <div class="consent-row">
-        <input type="checkbox" id="pref-rappel">
-        <span>Recevoir des rappels 3 semaines avant mes manifestations</span>
-      </div>
-      <div class="consent-row">
-        <input type="checkbox" id="pref-impact">
-        <span>Recevoir des rappels sur les manifestations impactant mes activités</span>
-      </div>
+    <button class="modal-x" onclick="closeModal('chg-mdp')">✕</button>
+    <span class="mi">🔑</span>
+    <h3>Modifier mon mot de passe</h3>
+    <form onsubmit="event.preventDefault();changerMonMdp();" autocomplete="on">
+    <div class="modal-field">
+      <label>Ancien mot de passe</label>
+      <input type="password" id="chg-old" autocomplete="current-password" placeholder="Mot de passe actuel">
     </div>
-    <button class="btn-v bv-blue" onclick="sauvegarderPrefs()">💾 Enregistrer mes préférences</button>
+    <div class="modal-field">
+      <label>Nouveau mot de passe</label>
+      <input type="password" id="chg-new" autocomplete="new-password" placeholder="Minimum 6 caractères">
+    </div>
+    <div class="modal-field">
+      <label>Confirmer le nouveau mot de passe</label>
+      <input type="password" id="chg-new2" autocomplete="new-password" placeholder="Confirmer">
+    </div>
+    <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['chg-old','chg-new','chg-new2'])"> Voir les caractères</label>
+    <div class="err-msg" id="err-chg-mdp"></div>
+    <button type="submit" class="btn-v bv-blue">💾 Enregistrer</button>
+    </form>
+  </div>
+</div>
+
+<!-- MODALE AGENT : DÉFINIR LE MOT DE PASSE D'UNE ASSOCIATION -->
+<div id="modal-reset-mdp" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal('reset-mdp')">✕</button>
+    <span class="mi">🔑</span>
+    <h3>Nouveau mot de passe</h3>
+    <p>Le nouveau mot de passe remplace l'ancien. Communiquez-le à l'association.</p>
+    <div class="asso-nom-box" id="rm-nom"></div>
+    <form onsubmit="event.preventDefault();validerResetMdp();" autocomplete="off">
+    <div class="modal-field">
+      <label>Nouveau mot de passe</label>
+      <input type="password" id="rm-mdp" autocomplete="new-password" placeholder="Minimum 6 caractères">
+    </div>
+    <div class="modal-field">
+      <label>Confirmer</label>
+      <input type="password" id="rm-mdp2" autocomplete="new-password" placeholder="Confirmer">
+    </div>
+    <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['rm-mdp','rm-mdp2'])"> Voir les caractères</label>
+    <div class="err-msg" id="err-reset-mdp"></div>
+    <button type="submit" class="btn-v bv-blue">💾 Remplacer le mot de passe</button>
+    <button type="button" class="btn-link" style="display:block;margin:14px auto 0;" onclick="effacerMdpAsso()">Ou effacer le mot de passe (l'association en recréera un à sa prochaine connexion)</button>
+    </form>
   </div>
 </div>
 
@@ -2120,8 +2136,7 @@ function changerMdp(t){
   msg.style.display='block';
   if(!n){msg.style.color='#C62828';msg.textContent='Le code ne peut pas être vide.';return;}
   if(n!==c){msg.style.color='#C62828';msg.textContent='Les deux codes ne correspondent pas.';return;}
-  if(isA)S.mdpAsso=n;else S.mdpAdmin=n;
-  saveS();msg.style.color='#2E7D32';msg.textContent='✅ Code mis à jour.';
+  hashMdp(n).then(h=>{ if(isA)S.mdpAsso=h;else S.mdpAdmin=h; saveS(); });msg.style.color='#2E7D32';msg.textContent='✅ Code mis à jour.';
   document.getElementById(isA?'na1':'nadm1').value='';
   document.getElementById(isA?'na2':'nadm2').value='';
   toast('✅ Code '+(isA?'association':'administrateur')+' modifié.');
@@ -2280,8 +2295,18 @@ function ouvrirPlanningAdmin(){
 // MODALES
 // ============================================================
 function openModal(t){
-  document.getElementById('modal-'+t).classList.add('open');
-  if(t==='asso' || t==='creer-compte') populateAssoSelects();
+  const m=document.getElementById('modal-'+t);
+  // Remise à zéro des champs mot de passe et des messages à chaque ouverture
+  m.querySelectorAll('input[type=password],input[data-voir]').forEach(i=>{i.value='';i.type='password';delete i.dataset.voir;});
+  m.querySelectorAll('.voir-mdp input').forEach(c=>c.checked=false);
+  m.querySelectorAll('.err-msg').forEach(e=>{e.style.display='none';e.textContent='';});
+  m.classList.add('open');
+  if(t==='asso') populateAssoSelects();
+}
+// Case "Voir les caractères"
+function toggleVoir(cb,ids){
+  ids.forEach(id=>{const i=document.getElementById(id); if(!i) return;
+    i.type=cb.checked?'text':'password'; if(cb.checked) i.dataset.voir='1'; else delete i.dataset.voir;});
 }
 function closeModal(t){
   document.getElementById('modal-'+t).classList.remove('open');
@@ -2316,124 +2341,197 @@ async function refreshAuthFromDB(){
   }catch(e){ console.warn('refreshAuthFromDB error:',e); }
 }
 
+// ---------- Mots de passe : stockés uniquement sous forme d'empreinte ----------
+// Format : "h1$<sel>$<sha256(sel:mdp)>". L'empreinte ne permet pas de retrouver le mot de passe.
+const MDP_MIN = 6;
+function _hex(buf){ return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
+async function hashMdp(mdp){
+  const sel=_hex(crypto.getRandomValues(new Uint8Array(16)));
+  const h=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sel+':'+mdp));
+  return 'h1$'+sel+'$'+_hex(h);
+}
+function estHash(v){ return typeof v==='string' && v.startsWith('h1$'); }
+async function verifMdp(stocke, saisi){
+  if(!stocke || !saisi) return false;
+  if(!estHash(stocke)) return stocke===saisi; // ancien mot de passe en clair (migré à la connexion)
+  const parts=stocke.split('$');
+  const h=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(parts[1]+':'+saisi));
+  return _hex(h)===parts[2];
+}
+function errBox(id,txt){ const e=document.getElementById(id); e.textContent=txt; e.style.display='block'; }
+
+// Sélection de l'association dans la fenêtre de connexion
+async function assoChoisie(){
+  const nom=document.getElementById('asso-nom-select').value.trim();
+  const zone=document.getElementById('asso-mdp-zone');
+  const btn=document.getElementById('btn-asso-go');
+  document.getElementById('err-asso').style.display='none';
+  zone.style.display='none'; btn.style.display='none';
+  if(!nom) return;
+  await refreshAuthFromDB();
+  const compte=S.comptes[nom];
+  if(compte && compte.mdp){
+    document.getElementById('asso-username').value=nom;
+    zone.style.display='block'; btn.style.display='block';
+    setTimeout(()=>document.getElementById('code-asso').focus(),50);
+  } else {
+    // Première connexion : création du mot de passe
+    closeModal('asso');
+    openModal('premier-mdp');
+    document.getElementById('pm-nom').textContent=nom;
+    document.getElementById('pm-username').value=nom;
+    setTimeout(()=>document.getElementById('pm-mdp').focus(),50);
+  }
+}
+
+async function creerPremierMdp(){
+  const nom=document.getElementById('pm-nom').textContent.trim();
+  const mdp=document.getElementById('pm-mdp').value;
+  const mdp2=document.getElementById('pm-mdp2').value;
+  document.getElementById('err-premier-mdp').style.display='none';
+  if(!nom) return;
+  if(mdp.length<MDP_MIN) return errBox('err-premier-mdp','Mot de passe trop court ('+MDP_MIN+' caractères minimum).');
+  if(mdp!==mdp2) return errBox('err-premier-mdp','Les deux mots de passe ne correspondent pas.');
+  await refreshAuthFromDB();
+  if(S.comptes[nom] && S.comptes[nom].mdp) return errBox('err-premier-mdp','Un mot de passe existe déjà pour cette association. Contactez le service des sports.');
+  S.comptes[nom]=Object.assign({}, S.comptes[nom]||{}, { mdp:await hashMdp(mdp), createdAt:new Date().toISOString() });
+  await saveToDB();
+  closeModal('premier-mdp');
+  go('pg-accueil');
+  toast('✅ Mot de passe enregistré. Connectez-vous avec votre association.');
+}
+
 async function valAsso(){
   await refreshAuthFromDB();
   const nom = document.getElementById('asso-nom-select').value.trim();
-  const mdp = document.getElementById('code-asso').value.trim();
+  const mdp = document.getElementById('code-asso').value;
   const remember = document.getElementById('asso-remember').checked;
-  const err = document.getElementById('err-asso');
-  err.style.display='none';
+  document.getElementById('err-asso').style.display='none';
 
-  if(!nom){ err.textContent='Veuillez choisir votre association.'; err.style.display='block'; return; }
+  if(!nom) return errBox('err-asso','Veuillez choisir votre association.');
   const compte = S.comptes[nom];
-  if(!compte){ err.textContent='Aucun compte pour cette association. Créez-en un.'; err.style.display='block'; return; }
-  if(compte.mdp !== mdp){ err.textContent='Mot de passe incorrect.'; err.style.display='block'; return; }
+  if(!compte || !compte.mdp){ assoChoisie(); return; }
+  if(!(await verifMdp(compte.mdp, mdp))) return errBox('err-asso','Mot de passe incorrect.');
+  // Migration : un ancien mot de passe en clair est remplacé par son empreinte
+  if(!estHash(compte.mdp)){ compte.mdp=await hashMdp(mdp); saveToDB(); }
 
-  currentUser = { nom, role:'asso', mail:compte.mail, prefs:compte.prefs||{} };
-  if(remember) localStorage.setItem('asso_remember', JSON.stringify({nom,mdp}));
+  currentUser = { nom, role:'asso' };
+  // On ne mémorise QUE le nom de l'association, jamais le mot de passe
+  if(remember) localStorage.setItem('asso_remember', JSON.stringify({nom}));
+  else localStorage.removeItem('asso_remember');
   closeModal('asso');
   buildTabs('asso-tabs-zone','asso-content',false);
   document.getElementById('asso-lock-bar').style.display=S.verrou?'flex':'none';
-  const btnPrefs = document.getElementById('btn-prefs-asso');
-  if(btnPrefs) btnPrefs.style.display='inline-block';
   go('pg-asso');
-  toast('\u2705 Bonjour '+nom+' !');
+  toast('✅ Bonjour '+nom+' !');
 }
 
 async function valAgent(){
   await refreshAuthFromDB();
   const mdp = document.getElementById('code-agent').value.trim();
-  const err = document.getElementById('err-agent');
-  err.style.display='none';
-  if(mdp === S.mdpAgent){
+  document.getElementById('err-agent').style.display='none';
+  if(await verifMdp(S.mdpAgent, mdp)){
+    if(!estHash(S.mdpAgent)){ S.mdpAgent=await hashMdp(mdp); saveToDB(); }
     currentUser = { nom:'Agent', role:'agent' };
     closeModal('agent');
     go('pg-admin');
-    toast('\u2705 Connexion agent réussie !');
-  } else {
-    err.textContent='Code incorrect.';
-    err.style.display='block';
-  }
+    toast('✅ Connexion agent réussie !');
+  } else errBox('err-agent','Code incorrect.');
 }
 
 async function valAdmin(){
   await refreshAuthFromDB();
   const mdp = document.getElementById('code-admin').value.trim();
-  const err = document.getElementById('err-admin');
-  err.style.display='none';
-  if(mdp === S.mdpAdmin){
+  document.getElementById('err-admin').style.display='none';
+  if(await verifMdp(S.mdpAdmin, mdp)){
+    if(!estHash(S.mdpAdmin)){ S.mdpAdmin=await hashMdp(mdp); saveToDB(); }
     currentUser = { nom:'Admin', role:'admin' };
     closeModal('admin');
     go('pg-admin');
-    toast('\u2705 Bienvenue administrateur !');
-  } else {
-    err.textContent='Code incorrect.';
-    err.style.display='block';
-  }
-}
-
-function creerCompteAsso(){
-  const nom   = document.getElementById('cc-nom').value.trim();
-  const mdp   = document.getElementById('cc-mdp').value.trim();
-  const mdp2  = document.getElementById('cc-mdp2').value.trim();
-  const mail  = document.getElementById('cc-mail').value.trim();
-  const rappel = document.getElementById('cc-consent-rappel').checked;
-  const impact = document.getElementById('cc-consent-impact').checked;
-  const err   = document.getElementById('err-creer-compte');
-  err.style.display='none';
-
-  if(!nom){ err.textContent='Choisissez votre association.'; err.style.display='block'; return; }
-  if(S.comptes[nom]){ err.textContent='Un compte existe déjà pour cette association.'; err.style.display='block'; return; }
-  if(!mdp || mdp.length<4){ err.textContent='Mot de passe trop court (4 caractères min).'; err.style.display='block'; return; }
-  if(mdp !== mdp2){ err.textContent='Les mots de passe ne correspondent pas.'; err.style.display='block'; return; }
-  if(!mail || !mail.includes('@')){ err.textContent='Adresse email invalide.'; err.style.display='block'; return; }
-
-  S.comptes[nom] = { mdp, mail, prefs:{rappel,impact}, createdAt:new Date().toISOString() };
-  saveLocal(); saveToDB();
-  closeModal('creer-compte');
-  toast('\u2705 Compte créé ! Vous pouvez maintenant vous connecter.');
+    toast('✅ Bienvenue administrateur !');
+  } else errBox('err-admin','Code incorrect.');
 }
 
 function populateAssoSelects(){
-  ['asso-nom-select','cc-nom'].forEach(id=>{
-    const sel = document.getElementById(id);
-    if(!sel) return;
-    const current = sel.value;
-    sel.innerHTML = id==='cc-nom'
-      ? '<option value="">-- Choisir votre association --</option>'
-      : '<option value="">-- Choisir votre association --</option>';
-    (S.acts_list||[]).forEach(a=>{
-      const opt = document.createElement('option');
-      opt.value = a; opt.textContent = a;
-      if(a===current) opt.selected=true;
-      sel.appendChild(opt);
-    });
+  const sel = document.getElementById('asso-nom-select');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">-- Choisir votre association --</option>';
+  (S.acts_list||[]).forEach(a=>{
+    const opt = document.createElement('option');
+    opt.value = a; opt.textContent = a;
+    sel.appendChild(opt);
   });
-  // Pré-remplir si "se souvenir"
+  document.getElementById('asso-mdp-zone').style.display='none';
+  document.getElementById('btn-asso-go').style.display='none';
+  // "Se souvenir de mon association" : pré-sélection du nom uniquement
   try{
     const rem = localStorage.getItem('asso_remember');
     if(rem){
       const r = JSON.parse(rem);
-      const sel = document.getElementById('asso-nom-select');
-      if(sel && r.nom) sel.value=r.nom;
-      const inp = document.getElementById('code-asso');
-      if(inp && r.mdp) inp.value=r.mdp;
-      const cb = document.getElementById('asso-remember');
-      if(cb) cb.checked=true;
+      // Nettoyage : les anciennes versions stockaient le mot de passe en clair
+      if(r.mdp) localStorage.setItem('asso_remember', JSON.stringify({nom:r.nom}));
+      if(r.nom && (S.acts_list||[]).includes(r.nom)){
+        sel.value=r.nom;
+        document.getElementById('asso-remember').checked=true;
+        assoChoisie();
+      }
     }
   }catch(e){}
 }
 
-function sauvegarderPrefs(){
+// Association connectée : modifier son propre mot de passe (ancien obligatoire)
+async function changerMonMdp(){
   if(!currentUser || currentUser.role!=='asso') return;
-  const rappel = document.getElementById('pref-rappel').checked;
-  const impact = document.getElementById('pref-impact').checked;
-  if(S.comptes[currentUser.nom]){
-    S.comptes[currentUser.nom].prefs = {rappel,impact};
-    saveLocal(); saveToDB();
-  }
-  closeModal('prefs-mail');
-  toast('\u2705 Préférences enregistrées !');
+  const old=document.getElementById('chg-old').value;
+  const n=document.getElementById('chg-new').value;
+  const c=document.getElementById('chg-new2').value;
+  document.getElementById('err-chg-mdp').style.display='none';
+  await refreshAuthFromDB();
+  const compte=S.comptes[currentUser.nom];
+  if(!compte || !(await verifMdp(compte.mdp, old))) return errBox('err-chg-mdp','Ancien mot de passe incorrect.');
+  if(n.length<MDP_MIN) return errBox('err-chg-mdp','Nouveau mot de passe trop court ('+MDP_MIN+' caractères minimum).');
+  if(n!==c) return errBox('err-chg-mdp','Les deux nouveaux mots de passe ne correspondent pas.');
+  compte.mdp=await hashMdp(n);
+  await saveToDB();
+  closeModal('chg-mdp');
+  toast('✅ Mot de passe modifié.');
+}
+
+// Agent / admin : définir le mot de passe d'une association (sans l'ancien)
+let resetMdpNom=null;
+function ouvrirResetMdp(nom){
+  if(!currentUser || currentUser.role==='asso') return;
+  resetMdpNom=nom;
+  openModal('reset-mdp');
+  document.getElementById('rm-nom').textContent=nom;
+  setTimeout(()=>document.getElementById('rm-mdp').focus(),50);
+}
+async function validerResetMdp(){
+  if(!currentUser || currentUser.role==='asso' || !resetMdpNom) return;
+  const n=document.getElementById('rm-mdp').value;
+  const c=document.getElementById('rm-mdp2').value;
+  document.getElementById('err-reset-mdp').style.display='none';
+  if(n.length<MDP_MIN) return errBox('err-reset-mdp','Mot de passe trop court ('+MDP_MIN+' caractères minimum).');
+  if(n!==c) return errBox('err-reset-mdp','Les deux mots de passe ne correspondent pas.');
+  await refreshAuthFromDB();
+  S.comptes[resetMdpNom]=Object.assign({}, S.comptes[resetMdpNom]||{}, { mdp:await hashMdp(n), majAt:new Date().toISOString() });
+  await saveToDB();
+  closeModal('reset-mdp');
+  renderListeAssosAdmin();
+  toast('✅ Mot de passe de '+resetMdpNom+' remplacé.');
+}
+function effacerMdpAsso(){
+  const nom=resetMdpNom; if(!nom) return;
+  closeModal('reset-mdp');
+  showConfirm('Effacer le mot de passe de "'+nom+'"',
+    'L\'association devra créer un nouveau mot de passe à sa prochaine connexion.',
+    async ()=>{
+      await refreshAuthFromDB();
+      delete S.comptes[nom];
+      await saveToDB();
+      renderListeAssosAdmin();
+      toast('Mot de passe effacé : '+nom);
+    });
 }
 
 // ============================================================
@@ -2446,7 +2544,8 @@ function changerMdpAgent(){
   msg.style.display='block';
   if(!n){ msg.style.color='#C62828'; msg.textContent='Le code ne peut pas être vide.'; return; }
   if(n!==c){ msg.style.color='#C62828'; msg.textContent='Les deux codes ne correspondent pas.'; return; }
-  S.mdpAgent=n; saveS();
+  hashMdp(n).then(h=>{ S.mdpAgent=h; saveS(); });
+  document.getElementById('nagent1').value=''; document.getElementById('nagent2').value='';
   msg.style.color='#2E7D32'; msg.textContent='\u2705 Code agent mis à jour.';
   toast('\u2705 Code agent modifié.');
 }
@@ -2473,7 +2572,7 @@ function supprimerAssoDuPlanning(nom){
       S.acts_list = S.acts_list.filter(a=>a!==nom);
       delete S.act[nom];
       delete S.comptes[nom];
-      saveA(); saveLocal();
+      saveToDB();
       renderListeAssosAdmin();
       toast('Association supprimée : '+nom);
     }
@@ -2489,7 +2588,7 @@ function renderListeAssosAdmin(){
     return;
   }
   S.acts_list.forEach(a=>{
-    const hasCompte = !!S.comptes[a];
+    const hasCompte = !!(S.comptes[a] && S.comptes[a].mdp);
     const div = document.createElement('div');
     div.className='vcard';
     div.style.cssText='padding:12px 16px;margin-bottom:8px;';
@@ -2497,12 +2596,18 @@ function renderListeAssosAdmin(){
     info.style.flex='1';
     info.innerHTML = '<div style="font-size:14px;font-weight:600;">'+a+'</div>'
       +'<div style="font-size:11px;color:var(--texte2);margin-top:2px;">'
-      +(hasCompte ? '\u2705 Compte créé — '+S.comptes[a].mail : '\u26a0\ufe0f Pas encore de compte')+'</div>';
+      +(hasCompte ? '\u2705 Mot de passe défini' : '\u26a0\ufe0f Pas encore de mot de passe (créé à la 1re connexion)')+'</div>';
+    const btnK = document.createElement('button');
+    btnK.textContent='\ud83d\udd11 Mot de passe';
+    btnK.title='Définir un nouveau mot de passe';
+    btnK.style.cssText='background:#003F8A;color:#fff;padding:6px 12px;border-radius:8px;border:none;cursor:pointer;font-size:12px;margin-right:8px;white-space:nowrap;';
+    btnK.onclick = ()=>ouvrirResetMdp(a);
     const btn = document.createElement('button');
     btn.textContent='\ud83d\uddd1\ufe0f';
     btn.style.cssText='background:#C62828;color:#fff;padding:6px 12px;border-radius:8px;border:none;cursor:pointer;font-size:12px;';
     btn.onclick = ()=>supprimerAssoDuPlanning(a);
     div.appendChild(info);
+    div.appendChild(btnK);
     div.appendChild(btn);
     el.appendChild(div);
   });
