@@ -217,6 +217,8 @@ tr.conflict:hover td{background:rgba(198,40,40,.45)!important;}
 .btn-link{background:none;border:none;color:var(--bleu);font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;padding:0;text-decoration:underline;}
 .err-msg{color:#C62828;font-size:12px;margin-bottom:8px;display:none;padding:8px 12px;background:#FFF5F5;border-radius:8px;border:1px solid #FEB2B2;}
 
+input[data-mdp]{-webkit-text-security:disc;}
+input[data-mdp].mdp-vu{-webkit-text-security:none;}
 </style>
 </head>
 <body>
@@ -808,18 +810,17 @@ tr.flash td{animation:flashRow 2.2s ease;}
     <span class="mi">🏆</span>
     <h3>Connexion Association</h3>
     <p>Choisissez votre association.</p>
-    <form onsubmit="event.preventDefault();valAsso();" autocomplete="on">
+    <form onsubmit="event.preventDefault();valAsso();" autocomplete="off">
     <div class="modal-field">
       <label>Votre association</label>
       <select id="asso-nom-select" onchange="assoChoisie()">
         <option value="">-- Choisir votre association --</option>
       </select>
-      <input type="text" id="asso-username" name="username" autocomplete="username" style="display:none;" tabindex="-1">
     </div>
     <div id="asso-mdp-zone" style="display:none;">
       <div class="modal-field">
         <label>Mot de passe</label>
-        <input type="password" id="code-asso" name="password" autocomplete="current-password" placeholder="Votre mot de passe">
+        <input type="password" id="code-asso" autocomplete="off" placeholder="Votre mot de passe">
       </div>
       <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['code-asso'])"> Voir les caractères</label>
       <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#718096;margin-bottom:14px;cursor:pointer;">
@@ -874,15 +875,14 @@ tr.flash td{animation:flashRow 2.2s ease;}
     <h3>Créez votre mot de passe</h3>
     <p>Première connexion : choisissez le mot de passe de votre association. Il vous sera demandé à chaque connexion.</p>
     <div class="asso-nom-box" id="pm-nom"></div>
-    <form onsubmit="event.preventDefault();creerPremierMdp();" autocomplete="on">
-    <input type="text" id="pm-username" name="username" autocomplete="username" style="display:none;" tabindex="-1">
+    <form onsubmit="event.preventDefault();creerPremierMdp();" autocomplete="off">
     <div class="modal-field">
       <label>Créer votre mot de passe</label>
-      <input type="password" id="pm-mdp" autocomplete="new-password" placeholder="Minimum 6 caractères">
+      <input type="password" id="pm-mdp" autocomplete="off" placeholder="Minimum 6 caractères">
     </div>
     <div class="modal-field">
       <label>Confirmer le mot de passe</label>
-      <input type="password" id="pm-mdp2" autocomplete="new-password" placeholder="Confirmer le mot de passe">
+      <input type="password" id="pm-mdp2" autocomplete="off" placeholder="Confirmer le mot de passe">
     </div>
     <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['pm-mdp','pm-mdp2'])"> Voir les caractères</label>
     <div class="err-msg" id="err-premier-mdp"></div>
@@ -897,18 +897,18 @@ tr.flash td{animation:flashRow 2.2s ease;}
     <button class="modal-x" onclick="closeModal('chg-mdp')">✕</button>
     <span class="mi">🔑</span>
     <h3>Modifier mon mot de passe</h3>
-    <form onsubmit="event.preventDefault();changerMonMdp();" autocomplete="on">
+    <form onsubmit="event.preventDefault();changerMonMdp();" autocomplete="off">
     <div class="modal-field">
       <label>Ancien mot de passe</label>
-      <input type="password" id="chg-old" autocomplete="current-password" placeholder="Mot de passe actuel">
+      <input type="password" id="chg-old" autocomplete="off" placeholder="Mot de passe actuel">
     </div>
     <div class="modal-field">
       <label>Nouveau mot de passe</label>
-      <input type="password" id="chg-new" autocomplete="new-password" placeholder="Minimum 6 caractères">
+      <input type="password" id="chg-new" autocomplete="off" placeholder="Minimum 6 caractères">
     </div>
     <div class="modal-field">
       <label>Confirmer le nouveau mot de passe</label>
-      <input type="password" id="chg-new2" autocomplete="new-password" placeholder="Confirmer">
+      <input type="password" id="chg-new2" autocomplete="off" placeholder="Confirmer">
     </div>
     <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['chg-old','chg-new','chg-new2'])"> Voir les caractères</label>
     <div class="err-msg" id="err-chg-mdp"></div>
@@ -928,11 +928,11 @@ tr.flash td{animation:flashRow 2.2s ease;}
     <form onsubmit="event.preventDefault();validerResetMdp();" autocomplete="off">
     <div class="modal-field">
       <label>Nouveau mot de passe</label>
-      <input type="password" id="rm-mdp" autocomplete="new-password" placeholder="Minimum 6 caractères">
+      <input type="password" id="rm-mdp" autocomplete="off" placeholder="Minimum 6 caractères">
     </div>
     <div class="modal-field">
       <label>Confirmer</label>
-      <input type="password" id="rm-mdp2" autocomplete="new-password" placeholder="Confirmer">
+      <input type="password" id="rm-mdp2" autocomplete="off" placeholder="Confirmer">
     </div>
     <label class="voir-mdp"><input type="checkbox" onchange="toggleVoir(this,['rm-mdp','rm-mdp2'])"> Voir les caractères</label>
     <div class="err-msg" id="err-reset-mdp"></div>
@@ -2297,7 +2297,7 @@ function ouvrirPlanningAdmin(){
 function openModal(t){
   const m=document.getElementById('modal-'+t);
   // Remise à zéro des champs mot de passe et des messages à chaque ouverture
-  m.querySelectorAll('input[type=password],input[data-voir]').forEach(i=>{i.value='';i.type='password';delete i.dataset.voir;});
+  m.querySelectorAll('input[type=password],input[data-mdp],input[data-voir]').forEach(i=>{i.value='';masquer(i,true);delete i.dataset.voir;});
   m.querySelectorAll('.voir-mdp input').forEach(c=>c.checked=false);
   m.querySelectorAll('.err-msg').forEach(e=>{e.style.display='none';e.textContent='';});
   m.classList.add('open');
@@ -2305,8 +2305,7 @@ function openModal(t){
 }
 // Case "Voir les caractères"
 function toggleVoir(cb,ids){
-  ids.forEach(id=>{const i=document.getElementById(id); if(!i) return;
-    i.type=cb.checked?'text':'password'; if(cb.checked) i.dataset.voir='1'; else delete i.dataset.voir;});
+  ids.forEach(id=>masquer(document.getElementById(id), !cb.checked));
 }
 function closeModal(t){
   document.getElementById('modal-'+t).classList.remove('open');
@@ -2371,7 +2370,7 @@ async function assoChoisie(){
   await refreshAuthFromDB();
   const compte=S.comptes[nom];
   if(compte && compte.mdp){
-    document.getElementById('asso-username').value=nom;
+    
     zone.style.display='block'; btn.style.display='block';
     setTimeout(()=>document.getElementById('code-asso').focus(),50);
   } else {
@@ -2379,7 +2378,7 @@ async function assoChoisie(){
     closeModal('asso');
     openModal('premier-mdp');
     document.getElementById('pm-nom').textContent=nom;
-    document.getElementById('pm-username').value=nom;
+    
     setTimeout(()=>document.getElementById('pm-mdp').focus(),50);
   }
 }
@@ -2922,6 +2921,24 @@ function updateSaisonBadges(){
 majVerrou();
 initSupabase();
 
+
+// ===== Champs mot de passe masqués sans être reconnus par le gestionnaire du navigateur =====
+// (évite la liste « Full / Gymnastique / test – Depuis ce site web » sous le champ)
+const MASQUE_CSS = !!(window.CSS && CSS.supports && CSS.supports('-webkit-text-security','disc'));
+function masquer(i,cache){
+  if(!i) return;
+  if(i.dataset.mdp) i.classList.toggle('mdp-vu', !cache);
+  else i.type = cache ? 'password' : 'text';
+}
+function preparerChampsMdp(){
+  if(!MASQUE_CSS) return;
+  document.querySelectorAll('input[type=password]').forEach(i=>{
+    i.type='text'; i.dataset.mdp='1';
+    i.setAttribute('autocomplete','off'); i.setAttribute('autocorrect','off');
+    i.setAttribute('autocapitalize','off'); i.spellcheck=false;
+  });
+}
+preparerChampsMdp();
 </script>
 
 <!-- PAGE GESTION DES SAISONS -->
