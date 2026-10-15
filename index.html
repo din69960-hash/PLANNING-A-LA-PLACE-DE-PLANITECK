@@ -1212,8 +1212,9 @@ function confirmerNouvelleAct(){
   toast('✅ Activité "'+nom+'" ajoutée !');
 }
 function supprimerAct(nom){
-  showConfirm('⚠️ Supprimer "'+nom+'"','Êtes-vous sûr ? Les données seront perdues.',()=>{
-    S.acts_list=S.acts_list.filter(a=>a!==nom);delete S.act[nom];saveA();
+  showConfirm('⚠️ Supprimer "'+nom+'"','Êtes-vous sûr ? Les données seront perdues (et son mot de passe effacé).',async ()=>{
+    await refreshAuthFromDB();
+    S.acts_list=S.acts_list.filter(a=>a!==nom);delete S.act[nom];delete S.comptes[nom];await saveToDB();
     buildTabs(currentIsAdmin?'admin-tabs-zone':'asso-tabs-zone',currentCid,currentIsAdmin);
     toast('🗑️ Onglet "'+nom+'" supprimé.');
   });
@@ -2567,11 +2568,12 @@ function ajouterAssoDuPlanning(){
 function supprimerAssoDuPlanning(nom){
   showConfirm('Supprimer "'+nom+'"',
     'Êtes-vous sûr ? Les données de cette association seront perdues.',
-    ()=>{
+    async ()=>{
+      await refreshAuthFromDB();
       S.acts_list = S.acts_list.filter(a=>a!==nom);
       delete S.act[nom];
       delete S.comptes[nom];
-      saveToDB();
+      await saveToDB();
       renderListeAssosAdmin();
       toast('Association supprimée : '+nom);
     }
