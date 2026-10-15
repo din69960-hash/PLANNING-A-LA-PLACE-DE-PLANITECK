@@ -2934,7 +2934,9 @@ function preparerChampsMdp(){
   if(!MASQUE_CSS) return;
   document.querySelectorAll('input[type=password]').forEach(i=>{
     i.type='text'; i.dataset.mdp='1';
-    i.setAttribute('autocomplete','off'); i.setAttribute('autocorrect','off');
+    // « one-time-code » : le gestionnaire de mots de passe d'Edge/Chrome ignore ces champs
+    i.setAttribute('autocomplete','one-time-code');
+    i.setAttribute('data-lpignore','true'); i.setAttribute('data-1p-ignore','true'); i.setAttribute('data-form-type','other'); i.setAttribute('autocorrect','off');
     i.setAttribute('autocapitalize','off'); i.spellcheck=false;
   });
 }
