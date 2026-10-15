@@ -1029,9 +1029,6 @@ function applyRemote(d){
   if(!d || d._client === CLIENT_ID) return; // ignorer nos propres sauvegardes
   if(d.mois) S.mois=d.mois; if(d.act) S.act=d.act; if(d.acts_list) S.acts_list=d.acts_list;
   if(d.verrou!==undefined) S.verrou=d.verrou; if(d.annee) S.annee=d.annee;
-  if(d.mdpAsso) S.mdpAsso=d.mdpAsso; if(d.mdpAdmin) S.mdpAdmin=d.mdpAdmin;
-  if(d.mdpAgent) S.mdpAgent=d.mdpAgent;
-  if(d.comptes) S.comptes=d.comptes;
   if(d.saisons) S.saisons=d.saisons;
   if(d.lieux) S.lieux=d.lieux;
   if(d.colW) S.colW=d.colW;
@@ -1116,10 +1113,7 @@ async function loadFromDB(){
     const d=data.payload;
     if(d.mois) S.mois=d.mois; if(d.act) S.act=d.act; if(d.acts_list) S.acts_list=d.acts_list;
     if(d.verrou!==undefined) S.verrou=d.verrou; if(d.annee) S.annee=d.annee;
-    if(d.mdpAsso) S.mdpAsso=d.mdpAsso; if(d.mdpAdmin) S.mdpAdmin=d.mdpAdmin;
-    if(d.mdpAgent) S.mdpAgent=d.mdpAgent;
     if(d.lieux) S.lieux=d.lieux;
-    if(d.comptes) S.comptes=d.comptes;
     if(d.saisons) S.saisons=d.saisons;
     if(d.colW) S.colW=d.colW;
     saveLocal();
@@ -1132,16 +1126,13 @@ async function loadFromDB(){
 }
 
 async function saveToDB(){
-  if(!useDB){saveLocal();return;}
   saveLocal();
+  if(!useDB) return;
+  // Seule une personne connectée peut enregistrer (le serveur vérifie le jeton)
+  if(!currentUser || !currentUser.token) return;
   try {
-    const{error}=await supabaseClient.from('planning').upsert({
-      id:'main',
-      payload:{mois:S.mois,act:S.act,acts_list:S.acts_list,verrou:S.verrou,annee:S.annee,mdpAsso:S.mdpAsso,mdpAdmin:S.mdpAdmin,mdpAgent:S.mdpAgent,comptes:S.comptes,saisons:S.saisons,lieux:S.lieux,colW:S.colW||{},_client:CLIENT_ID},
-      updated_at:new Date().toISOString()
-    });
-    if(error) throw error;
-  } catch(e){ console.warn('saveToDB error:',e); setDBStatus('err'); }
+    await rpc('manif_sauver',{p_token:currentUser.token, p_payload:{mois:S.mois,act:S.act,acts_list:S.acts_list,verrou:S.verrou,annee:S.annee,saisons:S.saisons,lieux:S.lieux,colW:S.colW||{},_client:CLIENT_ID}});
+  } catch(e){ console.warn('saveToDB error:',e); toast('⚠️ Non enregistré : '+e.message); }
 }
 
 let confirmCallback = null;
@@ -1213,8 +1204,8 @@ function confirmerNouvelleAct(){
 }
 function supprimerAct(nom){
   showConfirm('⚠️ Supprimer "'+nom+'"','Êtes-vous sûr ? Les données seront perdues (et son mot de passe effacé).',async ()=>{
-    await refreshAuthFromDB();
-    S.acts_list=S.acts_list.filter(a=>a!==nom);delete S.act[nom];delete S.comptes[nom];await saveToDB();
+    S.acts_list=S.acts_list.filter(a=>a!==nom);delete S.act[nom];await saveToDB();
+    await effacerCompteAsso(nom);
     buildTabs(currentIsAdmin?'admin-tabs-zone':'asso-tabs-zone',currentCid,currentIsAdmin);
     toast('🗑️ Onglet "'+nom+'" supprimé.');
   });
@@ -2129,18 +2120,22 @@ function confirmReset(){
   });
 }
 
-function changerMdp(t){
+
+async function changerMdp(t){
   const isA=t==='asso';
-  const n=document.getElementById(isA?'na1':'nadm1').value.trim();
-  const c=document.getElementById(isA?'na2':'nadm2').value.trim();
   const msg=document.getElementById(isA?'msg-na':'msg-nadm');
   msg.style.display='block';
+  if(isA){ msg.style.color='#C62828'; msg.textContent='Le code association commun n\'est plus utilisé : chaque association a son propre mot de passe.'; return; }
+  const n=document.getElementById('nadm1').value.trim();
+  const c=document.getElementById('nadm2').value.trim();
   if(!n){msg.style.color='#C62828';msg.textContent='Le code ne peut pas être vide.';return;}
   if(n!==c){msg.style.color='#C62828';msg.textContent='Les deux codes ne correspondent pas.';return;}
-  hashMdp(n).then(h=>{ if(isA)S.mdpAsso=h;else S.mdpAdmin=h; saveS(); });msg.style.color='#2E7D32';msg.textContent='✅ Code mis à jour.';
-  document.getElementById(isA?'na1':'nadm1').value='';
-  document.getElementById(isA?'na2':'nadm2').value='';
-  toast('✅ Code '+(isA?'association':'administrateur')+' modifié.');
+  try{ await rpc('auth_definir_mdp',{p_site:'manif',p_token:currentUser&&currentUser.token,p_role:'admin',p_nom:'',p_nouveau:n}); }
+  catch(e){ msg.style.color='#C62828'; msg.textContent=e.message; return; }
+  msg.style.color='#2E7D32';msg.textContent='✅ Code mis à jour.';
+  document.getElementById('nadm1').value='';
+  document.getElementById('nadm2').value='';
+  toast('✅ Code administrateur modifié.');
 }
 
 function majSaison(){const v=parseInt(document.getElementById('inp-an').value)||2026;document.getElementById('prev-saison').textContent=v+'–'+(v+1);}
@@ -2241,16 +2236,12 @@ function bsAfficher(){
 let currentUser = null; // { nom, role: 'asso'|'agent'|'admin' }
 
 let S={
-  mdpAsso:localStorage.getItem('mdp_asso')||'Corbas',
-  mdpAdmin:localStorage.getItem('mdp_admin')||'Corbas',
-  mdpAgent:localStorage.getItem('mdp_agent')||'Agent69',
   verrou:localStorage.getItem('verrou')==='true',
   annee:parseInt(localStorage.getItem('annee')||'2026'),
   mois:JSON.parse(localStorage.getItem('mois_data')||'null'),
   act:JSON.parse(localStorage.getItem('act_data')||'null'),
   acts_list:JSON.parse(localStorage.getItem('acts_list')||'null'),
   lieux:JSON.parse(localStorage.getItem('lieux_data')||'null'),
-  comptes:JSON.parse(localStorage.getItem('comptes_assos')||'{}'),
   colW:(()=>{try{return JSON.parse(localStorage.getItem('col_widths')||'{}')||{};}catch(e){return {};}})(),
 };
 if(!S.acts_list) S.acts_list=[...ACTS_DEFAULT];
@@ -2281,6 +2272,7 @@ function go(id){
 }
 
 function deconnexion(){
+  if(currentUser && currentUser.token && supabaseClient){ supabaseClient.rpc('auth_deconnexion',{p_token:currentUser.token}).then(()=>{},()=>{}); }
   currentUser = null;
   go('pg-accueil');
 }
@@ -2327,36 +2319,29 @@ function closeConfirm(){
 // Recharge les mots de passe et comptes les plus récents depuis la base
 // avant toute connexion : garantit qu'un code modifié sur un poste est
 // immédiatement valable depuis n'importe quelle autre connexion.
-async function refreshAuthFromDB(){
-  if(!useDB || !supabaseClient) return;
-  try{
-    const {data,error}=await supabaseClient.from('planning').select('payload').eq('id','main').single();
-    if(error||!data||!data.payload) return;
-    const d=data.payload;
-    if(d.mdpAsso) S.mdpAsso=d.mdpAsso;
-    if(d.mdpAdmin) S.mdpAdmin=d.mdpAdmin;
-    if(d.mdpAgent) S.mdpAgent=d.mdpAgent;
-    if(d.comptes) S.comptes=d.comptes;
-    saveLocal();
-  }catch(e){ console.warn('refreshAuthFromDB error:',e); }
-}
+async function refreshAuthFromDB(){ /* les mots de passe ne sont plus lus par le site */ }
 
-// ---------- Mots de passe : stockés uniquement sous forme d'empreinte ----------
-// Format : "h1$<sel>$<sha256(sel:mdp)>". L'empreinte ne permet pas de retrouver le mot de passe.
+// ---------- Mots de passe : vérifiés uniquement côté serveur (Supabase) ----------
+// Le site envoie le mot de passe saisi à la base, qui renvoie un jeton de session.
+// Toutes les écritures exigent ce jeton.
 const MDP_MIN = 6;
-function _hex(buf){ return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
-async function hashMdp(mdp){
-  const sel=_hex(crypto.getRandomValues(new Uint8Array(16)));
-  const h=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sel+':'+mdp));
-  return 'h1$'+sel+'$'+_hex(h);
+async function rpc(fn,args){
+  if(!supabaseClient) throw new Error('Base de données indisponible');
+  const {data,error}=await supabaseClient.rpc(fn,args||{});
+  if(error){
+    if(error.code==='28000' && currentUser){ toast('Session expirée : reconnectez-vous.'); setTimeout(deconnexion,1500); }
+    throw new Error(error.message||'Erreur serveur');
+  }
+  return data;
 }
-function estHash(v){ return typeof v==='string' && v.startsWith('h1$'); }
-async function verifMdp(stocke, saisi){
-  if(!stocke || !saisi) return false;
-  if(!estHash(stocke)) return stocke===saisi; // ancien mot de passe en clair (migré à la connexion)
-  const parts=stocke.split('$');
-  const h=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(parts[1]+':'+saisi));
-  return _hex(h)===parts[2];
+async function connexion(role,nom,mdp){
+  const r=await rpc('auth_connexion',{p_site:'manif',p_role:role,p_nom:nom||'',p_mdp:mdp});
+  if(!r || !r.token) throw new Error((r&&r.erreur)||'Code incorrect.');
+  return r;
+}
+let comptesAvecMdp=new Set(); // associations ayant un mot de passe (vue admin / agent)
+async function chargerComptes(){
+  try{ comptesAvecMdp=new Set(await rpc('auth_liste_comptes',{p_site:'manif',p_token:currentUser.token})||[]); }catch(e){}
 }
 function errBox(id,txt){ const e=document.getElementById(id); e.textContent=txt; e.style.display='block'; }
 
@@ -2368,10 +2353,8 @@ async function assoChoisie(){
   document.getElementById('err-asso').style.display='none';
   zone.style.display='none'; btn.style.display='none';
   if(!nom) return;
-  await refreshAuthFromDB();
-  const compte=S.comptes[nom];
-  if(compte && compte.mdp){
-    
+  let a=true; try{ a=await rpc('auth_a_mdp',{p_site:'manif',p_nom:nom}); }catch(e){}
+  if(a){
     zone.style.display='block'; btn.style.display='block';
     setTimeout(()=>document.getElementById('code-asso').focus(),50);
   } else {
@@ -2379,7 +2362,6 @@ async function assoChoisie(){
     closeModal('asso');
     openModal('premier-mdp');
     document.getElementById('pm-nom').textContent=nom;
-    
     setTimeout(()=>document.getElementById('pm-mdp').focus(),50);
   }
 }
@@ -2392,30 +2374,23 @@ async function creerPremierMdp(){
   if(!nom) return;
   if(mdp.length<MDP_MIN) return errBox('err-premier-mdp','Mot de passe trop court ('+MDP_MIN+' caractères minimum).');
   if(mdp!==mdp2) return errBox('err-premier-mdp','Les deux mots de passe ne correspondent pas.');
-  await refreshAuthFromDB();
-  if(S.comptes[nom] && S.comptes[nom].mdp) return errBox('err-premier-mdp','Un mot de passe existe déjà pour cette association. Contactez le service des sports.');
-  S.comptes[nom]=Object.assign({}, S.comptes[nom]||{}, { mdp:await hashMdp(mdp), createdAt:new Date().toISOString() });
-  await saveToDB();
+  try{ await rpc('auth_creer_mdp',{p_site:'manif',p_nom:nom,p_mdp:mdp}); }
+  catch(e){ return errBox('err-premier-mdp',e.message); }
   closeModal('premier-mdp');
   go('pg-accueil');
   toast('✅ Mot de passe enregistré. Connectez-vous avec votre association.');
 }
 
 async function valAsso(){
-  await refreshAuthFromDB();
   const nom = document.getElementById('asso-nom-select').value.trim();
   const mdp = document.getElementById('code-asso').value;
   const remember = document.getElementById('asso-remember').checked;
   document.getElementById('err-asso').style.display='none';
-
   if(!nom) return errBox('err-asso','Veuillez choisir votre association.');
-  const compte = S.comptes[nom];
-  if(!compte || !compte.mdp){ assoChoisie(); return; }
-  if(!(await verifMdp(compte.mdp, mdp))) return errBox('err-asso','Mot de passe incorrect.');
-  // Migration : un ancien mot de passe en clair est remplacé par son empreinte
-  if(!estHash(compte.mdp)){ compte.mdp=await hashMdp(mdp); saveToDB(); }
+  let r;
+  try{ r=await connexion('asso',nom,mdp); }catch(e){ return errBox('err-asso',e.message); }
 
-  currentUser = { nom, role:'asso' };
+  currentUser = { nom:r.nom||nom, role:'asso', token:r.token };
   // On ne mémorise QUE le nom de l'association, jamais le mot de passe
   if(remember) localStorage.setItem('asso_remember', JSON.stringify({nom}));
   else localStorage.removeItem('asso_remember');
@@ -2423,33 +2398,29 @@ async function valAsso(){
   buildTabs('asso-tabs-zone','asso-content',false);
   document.getElementById('asso-lock-bar').style.display=S.verrou?'flex':'none';
   go('pg-asso');
-  toast('✅ Bonjour '+nom+' !');
+  toast('✅ Bonjour '+currentUser.nom+' !');
 }
 
 async function valAgent(){
-  await refreshAuthFromDB();
   const mdp = document.getElementById('code-agent').value.trim();
   document.getElementById('err-agent').style.display='none';
-  if(await verifMdp(S.mdpAgent, mdp)){
-    if(!estHash(S.mdpAgent)){ S.mdpAgent=await hashMdp(mdp); saveToDB(); }
-    currentUser = { nom:'Agent', role:'agent' };
-    closeModal('agent');
-    go('pg-admin');
-    toast('✅ Connexion agent réussie !');
-  } else errBox('err-agent','Code incorrect.');
+  let r;
+  try{ r=await connexion('agent','',mdp); }catch(e){ return errBox('err-agent',e.message); }
+  currentUser = { nom:'Agent', role:'agent', token:r.token };
+  closeModal('agent');
+  go('pg-admin');
+  toast('✅ Connexion agent réussie !');
 }
 
 async function valAdmin(){
-  await refreshAuthFromDB();
   const mdp = document.getElementById('code-admin').value.trim();
   document.getElementById('err-admin').style.display='none';
-  if(await verifMdp(S.mdpAdmin, mdp)){
-    if(!estHash(S.mdpAdmin)){ S.mdpAdmin=await hashMdp(mdp); saveToDB(); }
-    currentUser = { nom:'Admin', role:'admin' };
-    closeModal('admin');
-    go('pg-admin');
-    toast('✅ Bienvenue administrateur !');
-  } else errBox('err-admin','Code incorrect.');
+  let r;
+  try{ r=await connexion('admin','',mdp); }catch(e){ return errBox('err-admin',e.message); }
+  currentUser = { nom:'Admin', role:'admin', token:r.token };
+  closeModal('admin');
+  go('pg-admin');
+  toast('✅ Bienvenue administrateur !');
 }
 
 function populateAssoSelects(){
@@ -2486,13 +2457,10 @@ async function changerMonMdp(){
   const n=document.getElementById('chg-new').value;
   const c=document.getElementById('chg-new2').value;
   document.getElementById('err-chg-mdp').style.display='none';
-  await refreshAuthFromDB();
-  const compte=S.comptes[currentUser.nom];
-  if(!compte || !(await verifMdp(compte.mdp, old))) return errBox('err-chg-mdp','Ancien mot de passe incorrect.');
   if(n.length<MDP_MIN) return errBox('err-chg-mdp','Nouveau mot de passe trop court ('+MDP_MIN+' caractères minimum).');
   if(n!==c) return errBox('err-chg-mdp','Les deux nouveaux mots de passe ne correspondent pas.');
-  compte.mdp=await hashMdp(n);
-  await saveToDB();
+  try{ await rpc('auth_changer_mon_mdp',{p_site:'manif',p_token:currentUser.token,p_ancien:old,p_nouveau:n}); }
+  catch(e){ return errBox('err-chg-mdp',e.message); }
   closeModal('chg-mdp');
   toast('✅ Mot de passe modifié.');
 }
@@ -2513,12 +2481,17 @@ async function validerResetMdp(){
   document.getElementById('err-reset-mdp').style.display='none';
   if(n.length<MDP_MIN) return errBox('err-reset-mdp','Mot de passe trop court ('+MDP_MIN+' caractères minimum).');
   if(n!==c) return errBox('err-reset-mdp','Les deux mots de passe ne correspondent pas.');
-  await refreshAuthFromDB();
-  S.comptes[resetMdpNom]=Object.assign({}, S.comptes[resetMdpNom]||{}, { mdp:await hashMdp(n), majAt:new Date().toISOString() });
-  await saveToDB();
+  try{ await rpc('auth_definir_mdp',{p_site:'manif',p_token:currentUser.token,p_role:'asso',p_nom:resetMdpNom,p_nouveau:n}); }
+  catch(e){ return errBox('err-reset-mdp',e.message); }
   closeModal('reset-mdp');
   renderListeAssosAdmin();
   toast('✅ Mot de passe de '+resetMdpNom+' remplacé.');
+}
+// Efface le mot de passe d'une association (elle en recréera un à sa prochaine connexion)
+async function effacerCompteAsso(nom){
+  if(!currentUser || !currentUser.token) return false;
+  try{ await rpc('auth_definir_mdp',{p_site:'manif',p_token:currentUser.token,p_role:'asso',p_nom:nom,p_nouveau:''}); return true; }
+  catch(e){ toast('⚠️ Mot de passe non effacé : '+e.message); return false; }
 }
 function effacerMdpAsso(){
   const nom=resetMdpNom; if(!nom) return;
@@ -2526,9 +2499,7 @@ function effacerMdpAsso(){
   showConfirm('Effacer le mot de passe de "'+nom+'"',
     'L\'association devra créer un nouveau mot de passe à sa prochaine connexion.',
     async ()=>{
-      await refreshAuthFromDB();
-      delete S.comptes[nom];
-      await saveToDB();
+      if(!await effacerCompteAsso(nom)) return;
       renderListeAssosAdmin();
       toast('Mot de passe effacé : '+nom);
     });
@@ -2537,14 +2508,15 @@ function effacerMdpAsso(){
 // ============================================================
 // GESTION AGENT - CODE
 // ============================================================
-function changerMdpAgent(){
+async function changerMdpAgent(){
   const n = document.getElementById('nagent1').value.trim();
   const c = document.getElementById('nagent2').value.trim();
   const msg = document.getElementById('msg-nagent');
   msg.style.display='block';
   if(!n){ msg.style.color='#C62828'; msg.textContent='Le code ne peut pas être vide.'; return; }
   if(n!==c){ msg.style.color='#C62828'; msg.textContent='Les deux codes ne correspondent pas.'; return; }
-  hashMdp(n).then(h=>{ S.mdpAgent=h; saveS(); });
+  try{ await rpc('auth_definir_mdp',{p_site:'manif',p_token:currentUser&&currentUser.token,p_role:'agent',p_nom:'',p_nouveau:n}); }
+  catch(e){ msg.style.color='#C62828'; msg.textContent=e.message; return; }
   document.getElementById('nagent1').value=''; document.getElementById('nagent2').value='';
   msg.style.color='#2E7D32'; msg.textContent='\u2705 Code agent mis à jour.';
   toast('\u2705 Code agent modifié.');
@@ -2569,27 +2541,27 @@ function supprimerAssoDuPlanning(nom){
   showConfirm('Supprimer "'+nom+'"',
     'Êtes-vous sûr ? Les données de cette association seront perdues.',
     async ()=>{
-      await refreshAuthFromDB();
       S.acts_list = S.acts_list.filter(a=>a!==nom);
       delete S.act[nom];
-      delete S.comptes[nom];
       await saveToDB();
+      await effacerCompteAsso(nom);
       renderListeAssosAdmin();
       toast('Association supprimée : '+nom);
     }
   );
 }
 
-function renderListeAssosAdmin(){
+async function renderListeAssosAdmin(){
   const el = document.getElementById('liste-assos-admin');
   if(!el) return;
+  await chargerComptes();
   el.innerHTML='';
   if(!S.acts_list.length){
     el.innerHTML='<p style="color:var(--texte2);font-size:13px;">Aucune association.</p>';
     return;
   }
   S.acts_list.forEach(a=>{
-    const hasCompte = !!(S.comptes[a] && S.comptes[a].mdp);
+    const hasCompte = comptesAvecMdp.has(a);
     const div = document.createElement('div');
     div.className='vcard';
     div.style.cssText='padding:12px 16px;margin-bottom:8px;';
@@ -2696,11 +2668,8 @@ function saveLocal(){
     localStorage.setItem('acts_list',JSON.stringify(S.acts_list));
     localStorage.setItem('verrou',S.verrou);
     localStorage.setItem('annee',S.annee);
-    localStorage.setItem('mdp_asso',S.mdpAsso);
-    localStorage.setItem('mdp_admin',S.mdpAdmin);
-    localStorage.setItem('mdp_agent',S.mdpAgent);
+    ['mdp_asso','mdp_admin','mdp_agent','comptes_assos'].forEach(k=>localStorage.removeItem(k)); // anciennes versions
     localStorage.setItem('lieux_data',JSON.stringify(S.lieux));
-    localStorage.setItem('comptes_assos',JSON.stringify(S.comptes));
     localStorage.setItem('saisons_data',JSON.stringify(S.saisons));
     localStorage.setItem('col_widths',JSON.stringify(S.colW||{}));
   }catch(e){}
